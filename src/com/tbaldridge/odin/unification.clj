@@ -1,9 +1,10 @@
-(ns odin.unification
+(ns com.tbaldridge.odin.unification
   (:refer-clojure :exclude [==])
   (:require [clojure.walk :as walk]
             [clojure.string :as str]
             [clojure.set :as set]
-            [clojure.spec :as s])
+            [clojure.spec :as s]
+            [com.tbaldridge.odin.util :refer [body-lvars]])
   (:import (java.io Writer)))
 
 (def ^:dynamic *query-ctx* nil)
@@ -37,6 +38,10 @@
   [env a b]
   (assoc env b a))
 
+(defmethod -unify [LVar LVar]
+  [env a b]
+  (assoc env a b ))
+
 
 (defn unify [env a b]
   (-unify env (walk env a) (walk env b)))
@@ -64,37 +69,8 @@
         ([acc itm]
          (reduce #(%2 %1 itm) acc fs))))))
 
-(defn range-table [c i]
-  (mapcat
-    (fn [env]
-      (let [c' (walk env c)]
-        (assert (not (lvar? c')) "c must be bound")
-        (eduction
-          (keep (partial unify env i))
-          (range c'))))))
-
-(defn body-lvars [form]
-  (let [lvars (atom #{})
-        form (walk/postwalk
-               (fn [v]
-                 (cond
-                   (and (symbol? v)
-                        (not (namespace v))
-                        (str/starts-with? (name v) "?"))
-                   (do (swap! lvars conj v)
-                       v)
-
-                   (= v '_)
-                   `(lvar)
-
-                   :else v))
-               form)]
-
-
-    [@lvars form]))
 
 (defn with-env [reducible]
-  (println "ENV")
   (let [ctx *query-ctx*]
     (reify
       clojure.lang.IReduceInit
@@ -104,7 +80,7 @@
           (binding [*query-ctx* ctx]
             (reduce f init reducible)))))))
 
-(defmacro for-query [query projection]
+(defn for-query-impl [query projection]
   (let [[query-lvars query-form] (body-lvars query)
         [proj-lvars proj-form] (body-lvars projection)
         lvars (set/union query-lvars proj-lvars)
@@ -125,7 +101,7 @@
                      ~proj-form))))
              [{}]))))))
 
-(defmacro project [expr bind]
+(defn project-impl [expr bind]
   (let [[lvars expr] (body-lvars expr)
         env-sym (gensym "env_")]
     `(keep
@@ -137,7 +113,7 @@
                         lvars))]
            (unify ~env-sym ~bind ~expr))))))
 
-(defmacro pass [expr]
+(defn pass-impl [expr]
   (let [[lvars expr] (body-lvars expr)
         env-sym (gensym "env_")]
     `(keep
@@ -149,6 +125,26 @@
                         lvars))]
            (when ~expr
              ~env-sym))))))
+
+
+
+(defn defrule-impl [name args body]
+  (let [body `(conjunction
+                ~@body)
+        [lvars body] (body-lvars body)
+        lvars (set/difference lvars (set args))]
+    `(defn ~name ~args
+       (let [~@(interleave
+                 lvars
+                 (map (fn [lvar]
+                        `(lvar))
+                      lvars))]
+         ~@body))))
+
+
+
+
+
 
 
 

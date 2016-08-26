@@ -1,4 +1,4 @@
-(ns odin.tabling
+(ns com.tbaldridge.odin.tabling
   (:refer-clojure :exclude [==])
   (:require [odin.unification :refer [lvar? lvar == disjunction conjunction unify walk] :as u]
             [clojure.set :as set]

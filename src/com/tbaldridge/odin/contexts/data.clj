@@ -1,13 +1,13 @@
-(ns odin.contexts.data
-  (:require [odin.unification :as u]
-            [odin.util :as util]))
+(ns com.tbaldridge.odin.contexts.data
+  (:require [com.tbaldridge.odin :as o]
+            [com.tbaldridge.odin.unification :as u]
+            [com.tbaldridge.odin.util :as util]))
 
 (defn prefix [itm rc]
   (reify
     clojure.lang.IReduceInit
     (reduce [this f init]
       (let [acc (f init itm)]
-        (println "Reduced? " (reduced? acc))
         (if (reduced? acc)
           @acc
           (reduce f acc rc))))))
@@ -71,10 +71,9 @@
 
 
 (defn coll-index [coll]
-  (println "CTX -> " (pr-str u/*query-ctx*))
   (if-let [v (get (u/*query-ctx* ::indicies) coll)]
     v
-    (let [indexed (index-data coll)]
+    (let [indexed (time (index-data coll))]
       (set! u/*query-ctx* (assoc-in u/*query-ctx* [::indicies coll] indexed))
       indexed)))
 
@@ -92,18 +91,15 @@
         (let [p' (u/walk env p)
               a' (u/walk env a)
               v' (u/walk env v)]
-          (println "LVARs-> " [(u/lvar? p') (u/lvar? a') (u/lvar? v')])
-          (println "vals" p' a' v')
-
           (condp = [(u/lvar? p') (u/lvar? a') (u/lvar? v')]
 
             [true false true] (util/efor [[v es] (get-in index [:ave a'])
                                           e es]
-                                         (do (println "v e" v e)
-                                             (-> env
-                                                 (u/unify p' e)
-                                                 (u/unify v' v))))
-            [false false true]  (just (assoc env v' (get-in index [:eav p' a'])))
+                                         (-> env
+                                             (u/unify p' e)
+                                             (u/unify v' v)))
+            [false false true] (when-some [v (get-in index [:eav p' a'])]
+                                 (just (assoc env v' v)))
 
             [false true true] (util/efor [[a v] (get-in index [:eav p'])]
                                          (assoc env a' a v' v))
@@ -126,7 +122,6 @@
 
 
 (defn query-in [coll p [h & t] v]
-  (println "->DAT " p h t v)
   (if (seq t)
     (let [cvar (u/lvar)]
       (u/conjunction
@@ -134,59 +129,22 @@
         (query-in coll cvar t v)))
     (query coll p h v)))
 
+(defmacro lazy-rule [expr]
+  `(mapcat
+     (fn recursive-call [env#]
+       (eduction
+         ~expr
+         (just env#)))))
+
+(o/defrule parent-of [data ?p ?c]
+  (o/or
+    (o/= ?p ?c)
+    (o/and
+      (query data ?p _ ?ic)
+      (lazy-rule (parent-of data ?ic ?c)))))
 
 
-(def test-data
-  [{:name "Bill"
-    :gender :male
-    :children ["Sally" "Sam" "Jake"]}
-   {:name "Jane"
-    :gender :female
-    :children ["Sally" "Sam"]}
-   {:name "Beth"
-    :gender :female
-    :children ["Jake"]}
-   {:name "Horace"
-    :gender :male
-    :children ["Bill"]}
-   {:name     "Judith"
-    :gender :female
-    :children ["Bill"]}])
 
-(:vea (index-data test-data))
 
-(= (set (u/for-query
-          (query test-data ?e ?a ?v)
-          [?e ?a ?v]))
-   (set (map-path test-data)))
 
-(defn parents [d ?p1 ?p2 ?c]
-  (let [idx1 (u/lvar)
-        idx2 (u/lvar)
-        ?pp1 (u/lvar)
-        ?pp2 (u/lvar)]
-    (u/conjunction
-      (query-in d ?pp1 [:children idx1] ?c)
-      (query d ?pp1 :gender :male)
-      (query d ?pp1 :name ?p1)
-      (query-in d ?pp2 [:children idx2] ?c)
-      (query d ?pp2 :gender :female)
-      (query d ?pp2 :name ?p2))))
 
-(defn procreated [d ?p1 ?p2]
-  (parents d ?p1 ?p2 (u/lvar)))
-
-(vec (u/for-query
-       (parents test-data ?p1 ?p2 ?c)
-       {:father ?p1
-        :mother ?p2
-        :child ?c}))
-
-(vec (u/for-query
-       (u/conjunction
-         (query test-data ?pp :name ?pn)
-         (query-in test-data ?pp [:children ?idx] ?cn))
-       {:parent ?pn
-        :child  ?cn
-        :nth    (inc ?idx)}
-       ))
