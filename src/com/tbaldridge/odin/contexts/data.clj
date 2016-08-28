@@ -59,23 +59,29 @@
         cat
         v))))
 
-(defn index-data [coll]
-  (reduce
-    (fn [acc [p a v]]
-      (-> acc
-          (assoc-in [:eav p a] v)
-          (update-in [:ave a v] conj p)
-          (update-in [:vea v p] conj a)))
-    {}
-    (map-path coll)))
+(deftype IndexedData [coll index])
+
+(defn index-data ^IndexedData [coll]
+  (->>
+    (reduce
+      (fn [acc [p a v]]
+        (-> acc
+            (assoc-in [:eav p a] v)
+            (update-in [:ave a v] conj p)
+            (update-in [:vea v p] conj a)))
+      {}
+      (map-path coll))
+    (->IndexedData coll)))
 
 
 (defn coll-index [coll]
-  (if-let [v (get (u/*query-ctx* ::indicies) coll)]
-    v
-    (let [indexed (time (index-data coll))]
-      (set! u/*query-ctx* (assoc-in u/*query-ctx* [::indicies coll] indexed))
-      indexed)))
+  (if (instance? IndexedData coll)
+    (.-index coll)
+    (if-let [v (get (u/*query-ctx* ::indicies) coll)]
+      v
+      (let [indexed (.-index (index-data coll))]
+        (set! u/*query-ctx* (assoc-in u/*query-ctx* [::indicies coll] indexed))
+        indexed))))
 
 (defn just [x]
   (reify
@@ -113,6 +119,12 @@
             [false false false] (when (= v' (get-in index [:eav p' a']))
                                   (just env))
 
+            [true true false]  (util/efor [[e as] (get-in index [:vea v'])
+                                           a as]
+                                          (-> env
+                                              (u/unify p' e)
+                                              (u/unify a' a)))
+
             [true true true] (util/efor [[e avs] (get index :eav)
                                          [a v] avs]
                                         (-> env
@@ -142,6 +154,7 @@
     (o/and
       (query data ?p _ ?ic)
       (lazy-rule (parent-of data ?ic ?c)))))
+
 
 
 

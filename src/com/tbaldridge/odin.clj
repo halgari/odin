@@ -1,6 +1,7 @@
 (ns com.tbaldridge.odin
   (:refer-clojure :exclude [or and =])
-  (:require [com.tbaldridge.odin.unification :as u]))
+  (:require [com.tbaldridge.odin.unification :as u]
+            [com.tbaldridge.odin.util :as util]))
 
 (defn lvar
   "Creates a new logic variable"
@@ -31,17 +32,6 @@
   [query projection]
   (u/for-query-impl query projection))
 
-(defmacro transform-query [query [f p & args]]
-  (let [vars (util/filter query-var? args)])
-  `(reduce
-
-     (for-query
-       ~@query
-       ~@(filter ))))
-
-(transform-query
-  (query data ?p :c 2)
-  (inc ?p :c 2))
 
 (defmacro pass
   "Filters out any results were pred-clause is not truthy. Any symbols
