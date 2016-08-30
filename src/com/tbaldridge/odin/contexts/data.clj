@@ -83,20 +83,18 @@
         (set! u/*query-ctx* (assoc-in u/*query-ctx* [::indicies coll] indexed))
         indexed))))
 
-(defn just [x]
-  (reify
-    clojure.lang.IReduceInit
-    (reduce [this f init]
-      (unreduced (f init x)))))
-
 
 (defn query [coll p a v]
   (let [index (coll-index coll)]
     (mapcat
       (fn [env]
-        (let [p' (u/walk env p)
+        (let [index (if (u/lvar? coll)
+                      (coll-index (u/walk env coll))
+                      index)
+              p' (u/walk env p)
               a' (u/walk env a)
               v' (u/walk env v)]
+          (println p' a' v' (:ave index) (keys index) index coll)
           (condp = [(u/lvar? p') (u/lvar? a') (u/lvar? v')]
 
             [true false true] (util/efor [[v es] (get-in index [:ave a'])
@@ -111,7 +109,9 @@
                                          (assoc env a' a v' v))
 
             [true false false] (util/efor [e (get-in index [:ave a' v'])]
-                                          (u/unify env p' e))
+                                          (do
+                                            (println "EMIT " (:ave index) e)
+                                            (assoc env p' e)))
 
             [false true false] (util/efor [a (get-in index [:vea v' p'])]
                                           (u/unify env a' a))
@@ -141,12 +141,7 @@
         (query-in coll cvar t v)))
     (query coll p h v)))
 
-(defmacro lazy-rule [expr]
-  `(mapcat
-     (fn recursive-call [env#]
-       (eduction
-         ~expr
-         (just env#)))))
+
 
 (o/defrule parent-of [data ?p ?c]
   (o/or

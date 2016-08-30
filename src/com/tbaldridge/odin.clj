@@ -1,6 +1,7 @@
 (ns com.tbaldridge.odin
   (:refer-clojure :exclude [or and =])
   (:require [com.tbaldridge.odin.unification :as u]
+            [com.tbaldridge.odin.tabling :as tabling]
             [com.tbaldridge.odin.util :as util]))
 
 (defn lvar
@@ -52,7 +53,9 @@
   that start with ? in the body that are not also arguments are considered
   fresh lvars and will be created and kept in scope in the body."
   [name args & body]
-  (u/defrule-impl name args body))
+  (if (:tabled (meta name))
+    (tabling/defrule-impl name args body)
+    (u/defrule-impl name args body)))
 
 (defn =
   "Creates a query that unifies two more more values or lvars."
@@ -60,3 +63,12 @@
    (u/== a b))
   ([a b & rest]
    (apply and (= a b) rest)))
+
+(defmacro lazy-rule [expr]
+  (u/lazy-rule-impl expr))
+
+(defn log [prefix & args]
+  (map
+    (fn [env]
+      (apply println prefix (map (partial u/walk env) args))
+      env)))

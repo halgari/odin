@@ -1,10 +1,11 @@
 (ns com.tbaldridge.odin.tabling
   (:refer-clojure :exclude [==])
-  (:require [odin.unification :refer [lvar? lvar == disjunction conjunction unify walk] :as u]
+  (:require [com.tbaldridge.odin.unification :refer [lvar? lvar == disjunction conjunction unify walk] :as u]
             [clojure.set :as set]
             [clojure.walk :as walk]
-            [clojure.string :as str])
-  (:import [odin.unification LVar]))
+            [clojure.string :as str]
+            [com.tbaldridge.odin.util :as util])
+  (:import [com.tbaldridge.odin.unification LVar]))
 
 
 
@@ -130,10 +131,12 @@
                              (set! *tables* (assoc-in *tables* [rule-name key] table))
                              table)
                    new-env (bind-args inner-args key)]
+               (println "Building" key)
                (let [rf (fn
                           ([] nil)
                           ([acc] nil)
                           ([acc itm]
+                           (println "add " itm)
                            (add-result! table (make-key itm inner-args))
                            nil))]
                  (binding [*building* true]
@@ -162,7 +165,7 @@
 
 (defn linked [?a ?b]
   (apply disjunction
-         (map (fn [[a b]]
+         (map (fn linked [[a b]]
                 (disjunction
                   (conjunction
                     (== ?a a)
@@ -172,11 +175,13 @@
                     (== ?b a)))) graph)))
 
 (defmacro delay-rule [expr]
-  `(fn [xf#]
-     (fn [] (xf#))
-     (fn [acc#] (xf# acc#))
-     (fn [acc# itm#]
-       ((~expr xf#) acc# itm#))))
+  `(fn delayed-rule
+     [xf#]
+     (fn
+       ([] (xf#))
+       ([acc#] (xf# acc#))
+       ([acc# itm#]
+        ((~expr xf#) acc# itm#)))))
 
 (declare path)
 (let [inner-a (lvar)
@@ -192,71 +197,52 @@
     (table [a b])))
 
 
-(defn body-args [form]
-  (let [args     (atom #{})
-        out-form (walk/postwalk
-                   (fn [itm]
-                     (if (and (symbol? itm)
-                              (not (namespace itm))
-                              (str/starts-with? (name itm) "?")
-                              (not (::created (meta itm))))
-                       (do (swap! args conj itm)
-                           (vary-meta itm assoc ::created true))
-                       itm))
-                   form)]
-    [@args out-form]))
-
-(defmacro defrule [name args & body]
+(defn defrule-impl [name args body]
   (let [nm (keyword (clojure.core/name (gensym "rule-")))
-        [found-vars body] (body-args body)
+        [found-vars body] (util/body-lvars body)
         all-vars (set/union (set args) found-vars)]
     `(do
        (declare ~name)
        (let [~@(interleave all-vars (repeat `(lvar)))
-               table-fn# (tabulate ~nm [~@args] (delay-rule (conjunction ~@body)))]
+               table-fn# (tabulate ~nm [~@args] (o/lazy-rule (conjunction ~@body)))]
            (defn ~name [~@args]
              (table-fn# [~@args]))))))
 
 
+(comment
+  (defrule path [?a ?b]
+           (disjunction
+             (linked ?a ?b)
+             (conjunction
+               (linked ?a ?s)
+               (path ?s ?b))))
 
-(defrule path [?a ?b]
-         (disjunction
-           (linked ?a ?b)
-           (conjunction
-             (linked ?a ?s)
-             (path ?s ?b))))
+  (macroexpand '(defrule path [?a ?b]
+                         (disjunction
+                           (linked ?a ?b)
+                           (conjunction
+                             (linked ?a ?s)
+                             (path ?s ?b)))))
 
-(macroexpand '(defrule path [?a ?b]
-                       (disjunction
-                         (linked ?a ?b)
-                         (conjunction
-                           (linked ?a ?s)
-                           (path ?s ?b)))))
-
-(binding [*tables* {} #_ {:foo {[LVar 42] (->TableEntry :completed [] [[1 42]
-                                                                       [2 42]])}}]
-  (let [inner-a (lvar)
-        inner-b (lvar)
-        outer-a (lvar)
-        result  (last (repeatedly 2 #(transduce
-                                      (comp #_((tabulate :foo [inner-a inner-b] (range-table inner-a inner-b))
-                                                [42 outer-a])
-                                        (path :a outer-a)
-                                        #_((tabulate ::path [inner-a inner-b]
-                                                     (range-table inner-a inner-b))
-                                            [42 outer-a])
-                                        (keep (fn [env]
-                                                (u/walk env outer-a))))
-                                      conj
-                                      [{}])))]
-    (doseq [[k v] (::path *tables*)]
-      (println k (results v)))
-    result))
-
-
-(let [a (lvar)
-      b (lvar)]
-  (make-key {a 42} [a b]))
+  (binding [*tables* {} #_{:foo {[LVar 42] (->TableEntry :completed [] [[1 42]
+                                                                        [2 42]])}}]
+    (let [inner-a (lvar)
+          inner-b (lvar)
+          outer-a (lvar)
+          result  (last (repeatedly 2 #(transduce
+                                        (comp #_((tabulate :foo [inner-a inner-b] (range-table inner-a inner-b))
+                                                  [42 outer-a])
+                                          (path :a outer-a)
+                                          #_((tabulate ::path [inner-a inner-b]
+                                                       (range-table inner-a inner-b))
+                                              [42 outer-a])
+                                          (keep (fn [env]
+                                                  (u/walk env outer-a))))
+                                        conj
+                                        [{}])))]
+      (doseq [[k v] (::path *tables*)]
+        (println k (results v)))
+      result)))
 
 
 

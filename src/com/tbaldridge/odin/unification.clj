@@ -142,7 +142,19 @@
          ~@body))))
 
 
+(defn just [x]
+  (reify
+    clojure.lang.IReduceInit
+    (reduce [this f init]
+      (unreduced (f init x)))))
 
+
+(defn lazy-rule-impl [expr]
+  `(mapcat
+     (fn recursive-call [env#]
+       (eduction
+         ~expr
+         (just env#)))))
 
 
 
