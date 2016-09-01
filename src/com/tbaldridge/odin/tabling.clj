@@ -1,6 +1,6 @@
 (ns com.tbaldridge.odin.tabling
   (:refer-clojure :exclude [==])
-  (:require [com.tbaldridge.odin.unification :refer [lvar? lvar == disjunction conjunction unify walk] :as u]
+  (:require [com.tbaldridge.odin.unification :refer [lvar? lvar == disjunction conjunction unify walk *query-ctx*] :as u]
             [clojure.set :as set]
             [clojure.walk :as walk]
             [clojure.string :as str]
@@ -43,7 +43,7 @@
 
 
 
-(def ^:dynamic *tables*)
+#_(def ^:dynamic *tables*)
 (def ^:dynamic *building* false)
 
 (defn make-key [env args]
@@ -95,7 +95,7 @@
 
 (defn continue-suspended [rule-name]
   (let [emitted (volatile! false)]
-    (doreduce [[k table] (*tables* rule-name)
+    (doreduce [[k table] (get-in *query-ctx* [::tables rule-name])
                [f seen] (suspended table)
                to-emit (set/difference (results table) seen)]
               (vreset! emitted false)
@@ -112,7 +112,7 @@
         ([acc] (xf acc))
         ([acc env]
          (let [key (make-key env outer-args)]
-           (if-let [^TableEntry table (get-in *tables* [rule-name key])]
+           (if-let [^TableEntry table (get-in *query-ctx* [::tables rule-name key])]
              (if (completed? table)
                ;; The table is completed, so just unify the results
                (do
@@ -128,7 +128,7 @@
                  (emit-results xf acc env to-emit outer-args)))
              ;; No entry exists for this rule-key, so we need to create one
              (let [table   (let [table (->TableEntry :building {} #{})]
-                             (set! *tables* (assoc-in *tables* [rule-name key] table))
+                             (set! *query-ctx* (assoc-in *query-ctx* [::tables rule-name key] table))
                              table)
                    new-env (bind-args inner-args key)]
                (println "Building" key)
@@ -149,7 +149,7 @@
                                     (add-seen table suspension vals)
                                     (emit-results xf nil env [vals] outer-args))
                             to-emit)
-                   (doreduce [[_ table] (*tables* rule-name)]
+                   (doreduce [[_ table] (get-in *query-ctx* [::tables rule-name])]
                              (complete table)))
                  result)))))))))
 

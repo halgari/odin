@@ -103,7 +103,7 @@
                                              (u/unify p' e)
                                              (u/unify v' v)))
             [false false true] (when-some [v (get-in index [:eav p' a'])]
-                                 (just (assoc env v' v)))
+                                 (u/just (assoc env v' v)))
 
             [false true true] (util/efor [[a v] (get-in index [:eav p'])]
                                          (assoc env a' a v' v))
@@ -117,7 +117,7 @@
                                           (u/unify env a' a))
 
             [false false false] (when (= v' (get-in index [:eav p' a']))
-                                  (just env))
+                                  (u/just env))
 
             [true true false]  (util/efor [[e as] (get-in index [:vea v'])
                                            a as]
@@ -148,7 +148,7 @@
     (o/= ?p ?c)
     (o/and
       (query data ?p _ ?ic)
-      (lazy-rule (parent-of data ?ic ?c)))))
+      (u/lazy-rule (parent-of data ?ic ?c)))))
 
 
 

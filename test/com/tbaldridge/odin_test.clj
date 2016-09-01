@@ -83,18 +83,17 @@
           (o/lazy-rule (calls data ?n ?to))))))
 
 (deftest tabling-test
-  (binding [com.tbaldridge.odin.tabling/*tables* {}]
-    (let [link-data [[:a :b]
-                        [:b :c]
-                        [:c :d]
-                        [:d :a]]]
-      (is (= (set (o/for-query
-                    (link link-data :a ?to)
-                    ?to))
-             #{:b}))
+  (let [link-data [[:a :b]
+                   [:b :c]
+                   [:c :d]
+                   [:d :a]]]
+    (is (= (set (o/for-query
+                  (link link-data :a ?to)
+                  ?to))
+           #{:b}))
 
-      (is (= (set (o/for-query
-                    (calls link-data :a ?calls)
-                    ?calls))
-             #{:a :b :c :d}))
-      )))
+    (is (= (set (o/for-query
+                  (calls link-data :a ?calls)
+                  ?calls))
+           #{:a :b :c :d}))
+    ))

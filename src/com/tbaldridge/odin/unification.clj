@@ -156,6 +156,8 @@
          ~expr
          (just env#)))))
 
+(defmacro lazy-rule [expr]
+  (lazy-rule-impl expr))
 
 
 
