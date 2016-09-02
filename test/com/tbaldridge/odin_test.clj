@@ -96,4 +96,13 @@
                   (calls link-data :a ?calls)
                   ?calls))
            #{:a :b :c :d}))
-    ))
+
+
+
+    (testing "tabled results triggered by other results are fully processed"
+      (o/with-query-ctx
+        (doseq [start [:c :d :a :b]]
+          (is (= (set (o/for-query
+                        (calls link-data :a ?calls)
+                        ?calls))
+                 #{:a :b :c :d})))))))

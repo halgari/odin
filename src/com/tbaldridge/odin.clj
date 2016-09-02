@@ -2,7 +2,8 @@
   (:refer-clojure :exclude [or and =])
   (:require [com.tbaldridge.odin.unification :as u]
             [com.tbaldridge.odin.tabling :as tabling]
-            [com.tbaldridge.odin.util :as util]))
+            [com.tbaldridge.odin.util :as util]
+            [clojure.core :as clj]))
 
 (defn lvar
   "Creates a new logic variable"
@@ -72,3 +73,8 @@
     (fn [env]
       (apply println prefix (map (partial u/walk env) args))
       env)))
+
+(defmacro with-query-ctx
+  [& body]
+  `(binding [u/*query-ctx* (clj/or u/*query-ctx* {})]
+     ~@body))

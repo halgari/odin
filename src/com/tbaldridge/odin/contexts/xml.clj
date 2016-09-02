@@ -29,21 +29,25 @@
 (def data (xml/parse-str (time (slurp "https://api.eve-central.com/api/quicklook?typeid=34"))))
 
 
+(comment
+
+  (dotimes [x 1]
+    (time (d/index-data data)))
 
 
 
-(let [
-      ]
-  (count (time (transduce
-                 identity
-                 conj
-                 (o/for-query
-                   (o/and
-                     (tag data ?order :order)
-                     (tag-content-child data ?order :station ?station-id)
-                     (tag-content-child data ?order :station_name ?station-name)
-                     (tag-content-child data ?order :vol_remain ?vol-remain))
-                   {:station-id   (Long/parseLong ?station-id)
-                    :station-name ?station-name
-                    :vol-remain   (Long/parseLong ?vol-remain)})))))
+  (let [
+        ]
+    (count (time (transduce
+                   identity
+                   conj
+                   (o/for-query
+                     (o/and
+                       (tag data ?order :order)
+                       (tag-content-child data ?order :station ?station-id)
+                       (tag-content-child data ?order :station_name ?station-name)
+                       (tag-content-child data ?order :vol_remain ?vol-remain))
+                     {:station-id   (Long/parseLong ?station-id)
+                      :station-name ?station-name
+                      :vol-remain   (Long/parseLong ?vol-remain)}))))))
 

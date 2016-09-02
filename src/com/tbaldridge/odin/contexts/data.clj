@@ -66,10 +66,10 @@
     (reduce
       (fn [acc [p a v]]
         (-> acc
-            (assoc-in [:eav p a] v)
-            (update-in [:ave a v] conj p)
-            (update-in [:vea v p] conj a)))
-      {}
+            (util/assoc-in! [:eav p a] v)
+            (util/update-in! [:ave a v] conj p)
+            (util/update-in! [:vea v p] conj a)))
+      nil
       (map-path coll))
     (->IndexedData coll)))
 
@@ -94,7 +94,6 @@
               p' (u/walk env p)
               a' (u/walk env a)
               v' (u/walk env v)]
-          (println p' a' v' (:ave index) (keys index) index coll)
           (condp = [(u/lvar? p') (u/lvar? a') (u/lvar? v')]
 
             [true false true] (util/efor [[v es] (get-in index [:ave a'])
@@ -109,9 +108,7 @@
                                          (assoc env a' a v' v))
 
             [true false false] (util/efor [e (get-in index [:ave a' v'])]
-                                          (do
-                                            (println "EMIT " (:ave index) e)
-                                            (assoc env p' e)))
+                                 (assoc env p' e))
 
             [false true false] (util/efor [a (get-in index [:vea v' p'])]
                                           (u/unify env a' a))
@@ -119,11 +116,11 @@
             [false false false] (when (= v' (get-in index [:eav p' a']))
                                   (u/just env))
 
-            [true true false]  (util/efor [[e as] (get-in index [:vea v'])
-                                           a as]
-                                          (-> env
-                                              (u/unify p' e)
-                                              (u/unify a' a)))
+            [true true false] (util/efor [[e as] (get-in index [:vea v'])
+                                          a as]
+                                (-> env
+                                    (u/unify p' e)
+                                    (u/unify a' a)))
 
             [true true true] (util/efor [[e avs] (get index :eav)
                                          [a v] avs]
