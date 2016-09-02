@@ -3,6 +3,22 @@
             [com.tbaldridge.odin.unification :as u]
             [com.tbaldridge.odin.util :as util]))
 
+(defprotocol IPath
+  (add-to-path [this val]))
+
+(deftype Path [val nxt]
+  IPath
+  (add-to-path [this val]
+    (Path. val nxt)))
+
+(extend-protocol IPath
+  nil
+  (add-to-path [this val]
+    (->Path val this)))
+
+
+(def empty-path (->Path nil nil))
+
 (defn prefix [itm rc]
   (reify
     clojure.lang.IReduceInit
@@ -17,7 +33,7 @@
 (defn map-value [p k v]
   (cond
     (map? v)
-    (let [next-path (conj p k)]
+    (let [next-path (add-to-path p k)]
       (prefix [p k next-path]
               (eduction
                 (mapcat (fn [[k v]]
@@ -27,7 +43,7 @@
     (and (sequential? v)
          (not (string? v)))
 
-    (let [next-path (conj p k)]
+    (let [next-path (add-to-path p k)]
       (prefix [p k next-path]
               (eduction
                 (map-indexed
@@ -40,7 +56,7 @@
 
 
 (defn map-path [v]
-  (let [p ^::path []]
+  (let [p empty-path]
     (cond
 
       (map? v)
@@ -94,7 +110,7 @@
               p' (u/walk env p)
               a' (u/walk env a)
               v' (u/walk env v)]
-          (condp = [(u/lvar? p') (u/lvar? a') (u/lvar? v')]
+          (util/truth-table [(u/lvar? p') (u/lvar? a') (u/lvar? v')]
 
             [true false true] (util/efor [[v es] (get-in index [:ave a'])
                                           e es]
@@ -124,10 +140,10 @@
 
             [true true true] (util/efor [[e avs] (get index :eav)
                                          [a v] avs]
-                                        (-> env
-                                            (u/unify p' e)
-                                            (u/unify a' a)
-                                            (u/unify v' v)))))))))
+                               (-> env
+                                      (u/unify p' e)
+                                      (u/unify a' a)
+                                      (u/unify v' v)))))))))
 
 
 (defn query-in [coll p [h & t] v]

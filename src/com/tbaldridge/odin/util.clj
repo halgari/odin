@@ -93,3 +93,16 @@
                 coll))]
     (pfn coll path f args)))
 
+
+
+(defn truth-table-impl [path vars forms]
+  (if (= (count path) (count vars))
+    (or (forms path)
+        `(throw (IllegalArgumentException. ~(str "No matching clause: " path))))
+    `(if ~(nth vars (count path))
+       ~(truth-table-impl (conj path true) vars forms)
+       ~(truth-table-impl (conj path false) vars forms))))
+
+(defmacro truth-table [vars & {:as bodies}]
+  (truth-table-impl [] vars bodies))
+

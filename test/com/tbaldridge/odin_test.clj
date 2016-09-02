@@ -10,7 +10,7 @@
                  :d {:e {:f 2}
                      :g 3}}]
     ;; Test with both pre-indexed and non-pre-indexed data
-    (doseq [data [data (d/index-data data)]]
+    (doseq [data [#_data (d/index-data data)]]
       (is (= (set (o/for-query
                     (d/query data _ :c ?v)
                     ?v))
@@ -65,22 +65,44 @@
                   ?a))
            #{:Edward :Erin :Jack :Rose :Sam :Jane}))))
 
+
+
+
+
+
+
+
+
+
+
+(memoize inc)
+
+
 (o/defrule link [data ?from ?to]
   (o/and
-    (o/log "Link " data ?from ?to)
+    (o/log "Link " ?from ?to)
     (d/query data ?node 0 ?from)
-    (o/log "Link 2" ?from ?to)
     (d/query data ?node 1 ?to)))
 
-(o/defrule ^:tabled  calls [data ?from ?to]
+(o/defrule ^:tabled calls [data ?from ?to]
   (o/and
-    (o/log "Tabled " ?from ?to)
     (o/or
       (link data ?from ?to)
 
       (o/and
           (link data ?from ?n)
           (o/lazy-rule (calls data ?n ?to))))))
+
+
+(let [link-data [[:a :b]
+                 [:b :c]
+                 [:c :d]
+                 [:d :a]]]
+  (vec (o/for-query
+         (calls link-data :a ?to)
+         ?to)))
+
+
 
 (deftest tabling-test
   (let [link-data [[:a :b]
@@ -103,6 +125,49 @@
       (o/with-query-ctx
         (doseq [start [:c :d :a :b]]
           (is (= (set (o/for-query
-                        (calls link-data :a ?calls)
+                        (calls link-data start ?calls)
                         ?calls))
-                 #{:a :b :c :d})))))))
+                 #{:a :b :c :d}))))))
+
+  (testing "complex graphs"
+    (let [link-data [[:a :b]
+                     [:b :c]
+                     [:c :d]
+                     [:d :b]
+                     [:d :e]
+                     [:e :c]
+                     [:f :g]
+                     [:g :h]
+                     [:h :f]]]
+      (is (= (set (o/for-query
+                    (calls link-data :a ?calls)
+                    ?calls))
+             #{:b :c :d :e}))
+
+      (is (= (set (o/for-query
+                    (calls link-data :c ?calls)
+                    ?calls))
+             #{:b :c :d :e}))
+
+      (is (= (set (o/for-query
+                    (calls link-data :f ?calls)
+                    ?calls))
+             #{:g :h :f}))
+
+      (testing "tabled results work for separate graphs"
+        ;; If we marked all calls to 'calls' tabled after the first query
+        ;; the second here would not complete
+        (o/with-query-ctx
+          (is (= (set (o/for-query
+                        (calls link-data :c ?calls)
+                        ?calls))
+                 #{:b :c :d :e}))
+
+          (is (= (set (o/for-query
+                        (calls link-data :f ?calls)
+                        ?calls))
+                 #{:g :h :f}))))
+
+
+
+      )))

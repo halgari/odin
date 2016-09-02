@@ -99,7 +99,7 @@
                                     `(walk ~env-sym ~lvar))
                                   lvars))]
                      ~proj-form))))
-             [{}]))))))
+             [(hash-map)]))))))
 
 (defn project-impl [expr bind]
   (let [[lvars expr] (body-lvars expr)
