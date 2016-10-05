@@ -26,28 +26,43 @@
     (tag-content ?src ?child ?tag ?c)))
 
 
-(def data (xml/parse-str (time (slurp "https://api.eve-central.com/api/quicklook?typeid=34"))))
+#_(def data (xml/parse-str (time (slurp "https://api.eve-central.com/api/quicklook?typeid=34"))))
 
 
 (comment
 
-  (dotimes [x 1]
+  (dotimes [x 10]
     (time (d/index-data data)))
 
+  (vec (o/transform-query
+         {:a {:b {:c 42}}}
+         (o/and (d/query {:a {:b {:c 42}}} ?e :c ?i)
+                (o/transform ?e inc))))
 
+  (let [a (vec (range 10))
+        b (vec (range 30))]
+    (dotimes [x 10]
+      (time (dotimes [x 1000000]
+              (= a b)))))
 
   (let [
         ]
-    (count (time (transduce
-                   identity
-                   conj
-                   (o/for-query
-                     (o/and
-                       (tag data ?order :order)
-                       (tag-content-child data ?order :station ?station-id)
-                       (tag-content-child data ?order :station_name ?station-name)
-                       (tag-content-child data ?order :vol_remain ?vol-remain))
-                     {:station-id   (Long/parseLong ?station-id)
-                      :station-name ?station-name
-                      :vol-remain   (Long/parseLong ?vol-remain)}))))))
+    (o/with-query-ctx
+      (dotimes [x 10]
+        (count (time (transduce
+                          identity #_(take 1)
+                          conj
+                          (o/for-query
+                            (o/and
+                              (tag data ?order :order)
+                              (tag-content-child data ?order :station ?station-id)
+                              (tag-content-child data ?order :station_name ?station-name)
+                              (tag-content-child data ?order :vol_remain ?vol-remain))
+                            ?order
+                            #_{:station-id   (Long/parseLong ?station-id)
+                               :station-name ?station-name
+                               :vol-remain   (Long/parseLong ?vol-remain)}))))))
+
+
+    ))
 

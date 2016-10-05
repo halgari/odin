@@ -1,15 +1,29 @@
 (ns com.tbaldridge.odin.contexts.data
   (:require [com.tbaldridge.odin :as o]
             [com.tbaldridge.odin.unification :as u]
-            [com.tbaldridge.odin.util :as util]))
+            [com.tbaldridge.odin.util :as util])
+  (:import (java.io Writer)))
+
+(set! *warn-on-reflection* true)
 
 (defprotocol IPath
   (add-to-path [this val]))
 
-(deftype Path [val nxt]
+(deftype Path [v nxt]
   IPath
   (add-to-path [this val]
-    (Path. val nxt)))
+    (Path. val this))
+  clojure.lang.IReduceInit
+  (reduce [this f init]
+    (loop [^Path p this
+           acc init
+           i 0]
+      (if p
+        (let [result (f acc p)]
+          (if (reduced? result)
+            @result
+            (recur (.-nxt p) result (inc i))))
+        acc))))
 
 (extend-protocol IPath
   nil
@@ -18,6 +32,15 @@
 
 
 (def empty-path (->Path nil nil))
+
+(defmethod print-method Path
+  [^Path p ^Writer w]
+  (reduce
+    (fn [_ ^Path p]
+      (.write w (str (.-v p)))
+      (.write w " "))
+    nil
+    p))
 
 (defn prefix [itm rc]
   (reify
@@ -77,14 +100,27 @@
 
 (deftype IndexedData [coll index])
 
+(defn path-seq [^Path path]
+  (when path
+    (cons path (lazy-seq (path-seq (.-nxt path))))))
+
+(def conj-list (fnil conj '()))
+
 (defn index-data ^IndexedData [coll]
   (->>
     (reduce
       (fn [acc [p a v]]
-        (-> acc
-            (util/assoc-in! [:eav p a] v)
-            (util/update-in! [:ave a v] conj p)
-            (util/update-in! [:vea v p] conj a)))
+        (let [acc (-> acc
+                      (util/assoc-in! [:eav p a] v)
+                      (util/update-in! [:ave a v] conj-list p)
+                      (util/update-in! [:vea v p] conj-list a))]
+          (if (instance? Path v)
+            (reduce
+              (fn [acc p]
+                (util/update-in! acc [:paths p] conj-list v))
+              acc
+              p)
+            acc)))
       nil
       (map-path coll))
     (->IndexedData coll)))
@@ -92,8 +128,8 @@
 
 (defn coll-index [coll]
   (if (instance? IndexedData coll)
-    (.-index coll)
-    (if-let [v (get (u/*query-ctx* ::indicies) coll)]
+    (.-index ^IndexedData coll)
+    (if-let [v (get-in u/*query-ctx* [::indicies coll])]
       v
       (let [indexed (.-index (index-data coll))]
         (set! u/*query-ctx* (assoc-in u/*query-ctx* [::indicies coll] indexed))
@@ -102,48 +138,50 @@
 
 (defn query [coll p a v]
   (let [index (coll-index coll)]
-    (mapcat
-      (fn [env]
-        (let [index (if (u/lvar? coll)
-                      (coll-index (u/walk env coll))
-                      index)
-              p' (u/walk env p)
-              a' (u/walk env a)
-              v' (u/walk env v)]
-          (util/truth-table [(u/lvar? p') (u/lvar? a') (u/lvar? v')]
+    (u/with-tracing "Data Query" [p a v]
+      (mapcat
+        (fn [env]
+          (let [index (if (u/lvar? coll)
+                        (coll-index (u/walk env coll))
+                        index)
+                p'    (u/walk env p)
+                a'    (u/walk env a)
+                v'    (u/walk env v)]
 
-            [true false true] (util/efor [[v es] (get-in index [:ave a'])
-                                          e es]
-                                         (-> env
-                                             (u/unify p' e)
-                                             (u/unify v' v)))
-            [false false true] (when-some [v (get-in index [:eav p' a'])]
-                                 (u/just (assoc env v' v)))
+            (util/truth-table [(u/lvar? p') (u/lvar? a') (u/lvar? v')]
 
-            [false true true] (util/efor [[a v] (get-in index [:eav p'])]
-                                         (assoc env a' a v' v))
+                              [true false true] (util/efor [[v es] (get-in index [:ave a'])
+                                                            e es]
+                                                  (-> env
+                                                      (u/unify p' e)
+                                                      (u/unify v' v)))
+                              [false false true] (when-some [v (get-in index [:eav p' a'])]
+                                                   (u/just (assoc env v' v)))
 
-            [true false false] (util/efor [e (get-in index [:ave a' v'])]
-                                 (assoc env p' e))
+                              [false true true] (util/efor [[a v] (get-in index [:eav p'])]
+                                                  (assoc env a' a v' v))
 
-            [false true false] (util/efor [a (get-in index [:vea v' p'])]
-                                          (u/unify env a' a))
+                              [true false false] (util/efor [e (get-in index [:ave a' v'])]
+                                                   (assoc env p' e))
 
-            [false false false] (when (= v' (get-in index [:eav p' a']))
-                                  (u/just env))
+                              [false true false] (util/efor [a (get-in index [:vea v' p'])]
+                                                   (u/unify env a' a))
 
-            [true true false] (util/efor [[e as] (get-in index [:vea v'])
-                                          a as]
-                                (-> env
-                                    (u/unify p' e)
-                                    (u/unify a' a)))
+                              [false false false] (when (= v' (get-in index [:eav p' a']))
+                                                    (u/just env))
 
-            [true true true] (util/efor [[e avs] (get index :eav)
-                                         [a v] avs]
-                               (-> env
-                                      (u/unify p' e)
-                                      (u/unify a' a)
-                                      (u/unify v' v)))))))))
+                              [true true false] (util/efor [[e as] (get-in index [:vea v'])
+                                                            a as]
+                                                  (-> env
+                                                      (u/unify p' e)
+                                                      (u/unify a' a)))
+
+                              [true true true] (util/efor [[e avs] (get index :eav)
+                                                           [a v] avs]
+                                                 (-> env
+                                                     (u/unify p' e)
+                                                     (u/unify a' a)
+                                                     (u/unify v' v))))))))))
 
 
 (defn query-in [coll p [h & t] v]
@@ -156,13 +194,32 @@
 
 
 
-(o/defrule parent-of [data ?p ?c]
+#_(o/defrule parent-of [data ?p ?c]
   (o/or
     (o/= ?p ?c)
     (o/and
       (query data ?p _ ?ic)
       (u/lazy-rule (parent-of data ?ic ?c)))))
 
+(defn children-paths [data ?p]
+  (let [index (:paths (coll-index data))
+        inner-fn (fn inner-fn [index parent]
+                   (mapcat
+                     (fn [v]
+                       (cons v (inner-fn index v)))
+                     (get index parent)))]
+    (inner-fn index ?p)))
+
+(defn parent-of [data ?p ?c]
+  (mapcat
+    (fn [env]
+      (let [data' (u/walk env data)
+            p' (u/walk env ?p)
+            c' (u/walk env ?c)]
+        (util/truth-table [(u/lvar? p') (u/lvar? c')]
+                          [false true] (let [index (:paths (coll-index data'))]
+                                         (util/efor [c (get index p')]
+                                           (assoc env ?c c))))))))
 
 
 

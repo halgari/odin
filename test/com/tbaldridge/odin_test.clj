@@ -1,6 +1,7 @@
 (ns com.tbaldridge.odin-test
   (:refer-clojure :exclude [ancestors])
   (:require [com.tbaldridge.odin :as o]
+            [com.tbaldridge.odin.unification :as u]
             [com.tbaldridge.odin.contexts.data :as d]
             [clojure.test :refer :all]))
 
@@ -11,10 +12,11 @@
                      :g 3}}]
     ;; Test with both pre-indexed and non-pre-indexed data
     (doseq [data [#_data (d/index-data data)]]
-      (is (= (set (o/for-query
-                    (d/query data _ :c ?v)
-                    ?v))
-             #{1}))
+      (binding [u/*query-ctx* {::u/fn u/println-tracing-reporter}]
+        (is (= (set (o/for-query
+                      (d/query data _ :c ?v)
+                      ?v))
+               #{1})))
 
       (is (= (set (o/for-query
                     (d/query data _ ?a 1)
@@ -70,14 +72,6 @@
 
 
 
-
-
-
-
-
-(memoize inc)
-
-
 (o/defrule link [data ?from ?to]
   (o/and
     (o/log "Link " ?from ?to)
@@ -93,14 +87,6 @@
           (link data ?from ?n)
           (o/lazy-rule (calls data ?n ?to))))))
 
-
-(let [link-data [[:a :b]
-                 [:b :c]
-                 [:c :d]
-                 [:d :a]]]
-  (vec (o/for-query
-         (calls link-data :a ?to)
-         ?to)))
 
 
 

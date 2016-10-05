@@ -78,3 +78,9 @@
   [& body]
   `(binding [u/*query-ctx* (clj/or u/*query-ctx* {})]
      ~@body))
+
+(defmacro transform-query [data body]
+  (u/transform-query-impl data body))
+
+(defn transform [location f & args]
+  (u/transform location f args))

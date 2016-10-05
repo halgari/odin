@@ -4,10 +4,17 @@
             [clojure.string :as str]
             [clojure.set :as set]
             [clojure.spec :as s]
-            [com.tbaldridge.odin.util :refer [body-lvars]])
+            [com.tbaldridge.odin.util :refer [body-lvars]]
+            [com.tbaldridge.odin.util :as util])
   (:import (java.io Writer)))
 
+
 (def ^:dynamic *query-ctx* nil)
+(declare tracing-impl)
+
+(defn with-tracing [prefix lvars & clauses]
+  (apply comp (tracing-impl prefix lvars) clauses))
+
 
 (deftype LVar [])
 
@@ -86,19 +93,20 @@
         lvars (set/union query-lvars proj-lvars)
         env-sym (gensym "env_")]
     `(let [~@(interleave lvars (repeat `(lvar)))]
-       (binding [*query-ctx* (or *query-ctx* {})]
+       (binding [*query-ctx* (or *query-ctx* {} #_{::fn println-tracing-reporter})]
          (with-env
            (eduction
              (comp
                ~query-form
-               (keep
-                 (fn [~env-sym]
-                   (let [~@(interleave
-                             lvars
-                             (map (fn [lvar]
-                                    `(walk ~env-sym ~lvar))
-                                  lvars))]
-                     ~proj-form))))
+               (with-tracing "for-query projection: " [~@lvars]
+                 (keep
+                   (fn [~env-sym]
+                     (let [~@(interleave
+                               lvars
+                               (map (fn [lvar]
+                                      `(walk ~env-sym ~lvar))
+                                    lvars))]
+                       ~proj-form)))))
              [(hash-map)]))))))
 
 (defn project-impl [expr bind]
@@ -161,9 +169,51 @@
 
 
 
+(defn tracing-impl [prefix lvars]
+  (if-let [f (get *query-ctx* ::fn)]
+    (map
+      (fn [env]
+        (f prefix lvars (mapv #(walk env %) lvars))
+        env))
+    identity))
 
+(defn println-tracing-reporter [prefix lvars vals]
+  (print prefix )
+  (mapv
+    (fn [lvar val]
+      (if (lvar? val)
+        (print lvar "(unbound) ")
+        (print lvar "(" val ") ")))
+    lvars vals)
+  (println ""))
 
+(def transform-data-lvar (lvar))
+(def transform-fns-lvar (lvar))
 
+(defn transform [location f args]
+  (map
+    (fn [env]
+      (let [data (walk env transform-data-lvar)
+            fns (walk env transform-fns-lvar)]
+        (assert (not (lvar? data)))
+        (assoc env transform-fns-lvar
+                   (if (lvar? fns)
+                     [[f location args]]
+                     (conj fns [f location args])))))))
 
-
-
+(defn transform-query-impl [data body]
+  (let [[lvars query-form] (body-lvars body)
+        env-sym (gensym "env_")]
+    `(let [~@(interleave lvars (repeat `(lvar)))]
+       (binding [*query-ctx* (or *query-ctx* {} #_{::fn println-tracing-reporter})]
+         (with-env
+           (eduction
+             (comp
+               ~query-form
+               (with-tracing "for-query projection: " [~@lvars]
+                 (mapcat
+                   (fn [~env-sym]
+                     (util/efor [[f# e#] (walk ~env-sym transform-fns-lvar)
+                                 :let [e# (walk ~env-sym e#)]]
+                       [f# e#])))))
+             [(hash-map transform-data-lvar ~data)]))))))
