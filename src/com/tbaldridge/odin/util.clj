@@ -65,7 +65,6 @@
 
 (defn transform [data pth f & args]
   (let [inner (fn transform-inner [data [h & t :as path] f args]
-                (println data h)
                 (if path
                   (if-let [sub-data (get data h)]
                     (let [result (transform-inner sub-data t f args)]

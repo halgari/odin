@@ -1,13 +1,28 @@
-(ns com.tbaldridge.odin.unification
+(ns ^:skip-wiki com.tbaldridge.odin.unification
   (:refer-clojure :exclude [==])
   (:require [clojure.walk :as walk]
             [clojure.string :as str]
             [clojure.set :as set]
             [clojure.spec :as s]
-            [com.tbaldridge.odin.util :refer [body-lvars]])
+            [com.tbaldridge.odin.util :refer [body-lvars]]
+            [com.tbaldridge.odin.util :as util])
   (:import (java.io Writer)))
 
+
 (def ^:dynamic *query-ctx* nil)
+
+(defmacro cache-in-context [k body]
+  `(if-let [v# (get *query-ctx* ~k)]
+     v#
+     (let [b# ~body]
+       (set! *query-ctx* (assoc *query-ctx* ~k b#))
+       b#)))
+
+(declare tracing-impl)
+
+(defn with-tracing [prefix lvars & clauses]
+  (apply comp (tracing-impl prefix lvars) clauses))
+
 
 (deftype LVar [])
 
@@ -40,7 +55,7 @@
 
 (defmethod -unify [LVar LVar]
   [env a b]
-  (assoc env a b ))
+  (assoc env a b))
 
 
 (defn unify [env a b]
@@ -83,35 +98,71 @@
 (defn for-query-impl [query projection]
   (let [[query-lvars query-form] (body-lvars query)
         [proj-lvars proj-form] (body-lvars projection)
-        lvars (set/union query-lvars proj-lvars)
+        lvars   (set/union query-lvars proj-lvars)
         env-sym (gensym "env_")]
     `(let [~@(interleave lvars (repeat `(lvar)))]
-       (binding [*query-ctx* (or *query-ctx* {})]
+       (binding [*query-ctx* (or *query-ctx* {} #_{::fn println-tracing-reporter})]
          (with-env
            (eduction
              (comp
                ~query-form
-               (keep
+               (with-tracing "for-query projection: " [~@lvars]
+                 (keep
+                   (fn [~env-sym]
+                     (let [~@(interleave
+                               lvars
+                               (map (fn [lvar]
+                                      `(walk ~env-sym ~lvar))
+                                    lvars))]
+                       ~proj-form)))))
+             [(hash-map)]))))))
+
+
+
+
+(s/def ::bind-projection simple-symbol?)
+(s/def ::cat-projection (s/spec (s/cat :bind simple-symbol?
+                                       :cat #{'...})))
+
+(s/def ::projection (s/cat :expr any?
+                           :projection (s/alt :bind ::bind-projection
+                                              :cat ::cat-projection)))
+
+(s/def ::projections (s/cat :goals (s/* ::projection)))
+
+(defn project-impl [{:keys [expr projection] :as clause}]
+  (let [[type proj] projection]
+    (println "->> " expr type proj)
+    (let [[lvars expr] (body-lvars expr)
+          env-sym (gensym "env_")]
+      (case type
+        :bind `(keep
                  (fn [~env-sym]
                    (let [~@(interleave
                              lvars
                              (map (fn [lvar]
                                     `(walk ~env-sym ~lvar))
                                   lvars))]
-                     ~proj-form))))
-             [(hash-map)]))))))
+                     (unify ~env-sym ~proj ~expr))))
+        :cat (let [{:keys [bind]} proj]
+               `(mapcat
+                  (fn [~env-sym]
+                    (let [~@(interleave
+                              lvars
+                              (map (fn [lvar]
+                                     `(walk ~env-sym ~lvar))
+                                   lvars))]
+                      (eduction
+                        (keep
+                          (partial unify ~env-sym ~bind))
+                        ~expr)))))))))
 
-(defn project-impl [expr bind]
-  (let [[lvars expr] (body-lvars expr)
-        env-sym (gensym "env_")]
-    `(keep
-       (fn [~env-sym]
-         (let [~@(interleave
-                   lvars
-                   (map (fn [lvar]
-                          `(walk ~env-sym ~lvar))
-                        lvars))]
-           (unify ~env-sym ~bind ~expr))))))
+(defn project-impls [clauses]
+  (let [conf (s/conform ::projections clauses)
+        _    (assert (not= conf ::s/invalid) (s/explain ::projections clauses))]
+    (list* `conjunction
+           (map project-impl (:goals conf)))))
+
 
 (defn pass-impl [expr]
   (let [[lvars expr] (body-lvars expr)
@@ -129,8 +180,8 @@
 
 
 (defn defrule-impl [name args body]
-  (let [body `(conjunction
-                ~@body)
+  (let [body  `(conjunction
+                 ~@body)
         [lvars body] (body-lvars body)
         lvars (set/difference lvars (set args))]
     `(defn ~name ~args
@@ -151,7 +202,7 @@
 
 (defn lazy-rule-impl [expr]
   `(mapcat
-     (fn recursive-call [env#]
+     (fn ~'recursive-call [env#]
        (eduction
          ~expr
          (just env#)))))
@@ -161,9 +212,76 @@
 
 
 
+(defn tracing-impl [prefix lvars]
+  (if-let [f (get *query-ctx* ::fn)]
+    (map
+      (fn [env]
+        (f prefix lvars (mapv #(walk env %) lvars))
+        env))
+    identity))
 
+(defn println-tracing-reporter [prefix lvars vals]
+  (print prefix)
+  (mapv
+    (fn [lvar val]
+      (if (lvar? val)
+        (print lvar "(unbound) ")
+        (print lvar "(" val ") ")))
+    lvars vals)
+  (println ""))
 
+(def transform-data-lvar (lvar))
+(def transform-fns-lvar (lvar))
 
+(defn transform [location f args]
+  (map
+    (fn [env]
+      (let [data (walk env transform-data-lvar)
+            fns  (walk env transform-fns-lvar)]
+        (assert (not (lvar? data)))
+        (assoc env transform-fns-lvar
+                   (if (lvar? fns)
+                     [[f location args]]
+                     (conj fns [f location args])))))))
 
+(defn walk-all [env data]
+  (walk/postwalk
+    (fn [form]
+      (if (lvar? form)
+        (walk env form)
+        form))
+    data))
 
+(def xform-path (lvar))
+(def xform-attr (lvar))
+
+(defn transform-data [data envs f]
+  (reduce
+    (fn [acc env]
+      (let [path (walk env xform-path)
+            attr (walk env xform-attr)]
+        (let [p (if (lvar? attr)
+                  (vec path)
+                  (conj (vec path) attr))]
+          (update-in acc p f env))))
+    data
+    envs))
+
+(defn transform-query-impl [data body f args]
+  (let [[lvars query-form] (body-lvars body)
+        env-sym (gensym "env")
+        [args-lvars args-form] (body-lvars args)]
+    `(let [~@(interleave lvars (repeat `(lvar)))]
+       (binding [*query-ctx* (or *query-ctx* {})]
+         (transform-data
+           ~data
+           (with-env
+             (eduction
+               ~query-form
+               [(hash-map)]))
+           (fn [old# ~env-sym]
+             (let [~@(interleave args-lvars
+                                 (map (fn [lvar]
+                                        `(walk ~env-sym ~lvar)) args-lvars))]
+               (~f old# ~@args-form))))))))
 
