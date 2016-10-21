@@ -1,10 +1,9 @@
 (ns com.tbaldridge.odin.contexts.xml
   (:require [com.tbaldridge.odin.contexts.data :as d]
-            [com.tbaldridge.odin :as o]
-            [clojure.data.xml :as xml]))
+            [com.tbaldridge.odin :as o]))
 
 
-(xml/parse-str "<h1><div>42</div></h1>")
+
 
 
 (defn tag [src path t]
@@ -26,10 +25,12 @@
     (tag-content ?src ?child ?tag ?c)))
 
 
-#_(def data (xml/parse-str (time (slurp "https://api.eve-central.com/api/quicklook?typeid=34"))))
 
 
 (comment
+  (xml/parse-str "<h1><div>42</div></h1>")
+  (def data (xml/parse-str (time (slurp "https://api.eve-central.com/api/quicklook?typeid=34"))))
+
 
   (dotimes [x 10]
     (time (d/index-data data)))

@@ -1,4 +1,4 @@
-(ns com.tbaldridge.odin.tabling
+(ns ^:skip-wiki com.tbaldridge.odin.tabling
   (:refer-clojure :exclude [==])
   (:require [com.tbaldridge.odin.unification :refer [lvar? lvar == disjunction conjunction unify walk *query-ctx*] :as u]
             [clojure.set :as set]
@@ -117,7 +117,6 @@
              (if (completed? table)
                ;; The table is completed, so just unify the results
                (do
-                 (println "Prebuilt")
                  (emit-results xf acc env table outer-args))
                ;; Table is not completed, so we must be in a sub node somewhere. So we'll emit all resuls
                ;; we have in the table so far, then create a suspension and attach it to the table.
@@ -132,12 +131,10 @@
                              (set! *query-ctx* (assoc-in *query-ctx* [::tables rule-name key] table))
                              table)
                    new-env (bind-args inner-args key)]
-               (println "Building" key)
                (let [rf (fn
                           ([] nil)
                           ([acc] nil)
                           ([acc itm]
-                           (println "add " itm)
                            (add-result! table (make-key itm inner-args))
                            nil))]
                  (binding [*building* true]
@@ -176,7 +173,7 @@
                     (== ?b a)))) graph)))
 
 (defmacro delay-rule [expr]
-  `(fn delayed-rule
+  `(fn ~'delayed-rule
      [xf#]
      (fn
        ([] (xf#))
@@ -241,8 +238,7 @@
                                                   (u/walk env outer-a))))
                                         conj
                                         [{}])))]
-      (doseq [[k v] (::path *tables*)]
-        (println k (results v)))
+
       result)))
 
 

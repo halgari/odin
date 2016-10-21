@@ -1,4 +1,5 @@
 (ns com.tbaldridge.odin.contexts.data
+  (:refer-clojure :exclude [==])
   (:require [com.tbaldridge.odin :as o]
             [com.tbaldridge.odin.unification :as u]
             [com.tbaldridge.odin.util :as util])
@@ -9,38 +10,27 @@
 (defprotocol IPath
   (add-to-path [this val]))
 
-(deftype Path [v nxt]
+(deftype Path [v nxt clj-path]
   IPath
   (add-to-path [this val]
-    (Path. val this))
+    (Path. val this (conj clj-path val)))
   clojure.lang.IReduceInit
   (reduce [this f init]
-    (loop [^Path p this
-           acc init
-           i 0]
-      (if p
-        (let [result (f acc p)]
-          (if (reduced? result)
-            @result
-            (recur (.-nxt p) result (inc i))))
-        acc))))
+    (.reduce ^clojure.lang.IReduceInit clj-path f init)))
 
 (extend-protocol IPath
   nil
   (add-to-path [this val]
-    (->Path val this)))
+    (->Path val this [val])))
 
 
-(def empty-path (->Path nil nil))
+(def empty-path (->Path nil nil []))
 
 (defmethod print-method Path
   [^Path p ^Writer w]
-  (reduce
-    (fn [_ ^Path p]
-      (.write w (str (.-v p)))
-      (.write w " "))
-    nil
-    p))
+  (.write w "Path<")
+  (.write w (pr-str (.-clj_path p)))
+  (.write w ">"))
 
 (defn prefix [itm rc]
   (reify
@@ -106,7 +96,12 @@
 
 (def conj-list (fnil conj '()))
 
-(defn index-data ^IndexedData [coll]
+(defn index-data
+  "Indexes a collection for use in a call to `query`. Greater performance
+    can be found by indexing a collection once and re-using the index for
+    many successive queries. `query` automatically indexes all collections,
+    however, so this is not absoultely required. "
+  ^IndexedData [coll]
   (->>
     (reduce
       (fn [acc [p a v]]
@@ -126,7 +121,11 @@
     (->IndexedData coll)))
 
 
-(defn coll-index [coll]
+(defn coll-index
+  "Like `index-data` but looks in the query context to see if this collection
+  was previously indexed. Not super useful for end-users but, kept public
+  incase it is found useful by someone. "
+  [coll]
   (if (instance? IndexedData coll)
     (.-index ^IndexedData coll)
     (if-let [v (get-in u/*query-ctx* [::indicies coll])]
@@ -136,7 +135,12 @@
         indexed))))
 
 
-(defn query [coll p a v]
+(defn query
+  "Given a Clojure datastructure, query it, binding p to the `get-in` path
+  of each value. `v` is bound to the values in the collection. `a` is bound
+  to the attribute that connects a `p` and a `v`. `coll` must be bound,
+  but `p`, `a` and `v` are fully relational. "
+  [coll p a v]
   (let [index (coll-index coll)]
     (u/with-tracing "Data Query" [p a v]
       (mapcat
@@ -221,8 +225,10 @@
                                          (util/efor [c (get index p')]
                                            (assoc env ?c c))))))))
 
-
-
+(defn == [a b]
+  (keep
+    (fn [env]
+      (u/unify env a b))))
 
 
 

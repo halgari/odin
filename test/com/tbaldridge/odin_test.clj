@@ -8,11 +8,11 @@
 
 (deftest basic-query-test
   (let [data {:a {:b {:c 1}}
-                 :d {:e {:f 2}
-                     :g 3}}]
+              :d {:e {:f 2}
+                  :g 3}}]
     ;; Test with both pre-indexed and non-pre-indexed data
     (doseq [data [#_data (d/index-data data)]]
-      (binding [u/*query-ctx* {::u/fn u/println-tracing-reporter}]
+      (binding [u/*query-ctx* {} #_{::u/fn u/println-tracing-reporter}]
         (is (= (set (o/for-query
                       (d/query data _ :c ?v)
                       ?v))
@@ -25,7 +25,7 @@
 
       (is (= (set (o/for-query
                     (o/and (d/query data _ _ ?v)
-                           (o/pass (integer? ?v)))
+                           (o/when (integer? ?v)))
                     #{1 2 3}))))
 
       (is (= (set (o/for-query
@@ -74,7 +74,6 @@
 
 (o/defrule link [data ?from ?to]
   (o/and
-    (o/log "Link " ?from ?to)
     (d/query data ?node 0 ?from)
     (d/query data ?node 1 ?to)))
 
@@ -84,8 +83,8 @@
       (link data ?from ?to)
 
       (o/and
-          (link data ?from ?n)
-          (o/lazy-rule (calls data ?n ?to))))))
+        (link data ?from ?n)
+        (o/lazy-rule (calls data ?n ?to))))))
 
 
 
@@ -154,6 +153,65 @@
                         ?calls))
                  #{:g :h :f}))))
 
-
-
       )))
+
+
+(deftest transform-tests
+  (let [data {:a 1 :b 2}]
+    (is (= {:a 2 :b 3}
+           (o/transform data
+             (o/and
+               (d/query data ?p ?a ?v)
+               (o/when (integer? ?v))
+               (o/update ?p ?a))
+             inc))))
+
+  (let [data [{:name :Bill :parents [:Sam :Jane]}
+              {:name :Tom :parents [:Jane :Sam]}
+              {:name :Sam :parents [:Edward :Erin]}
+              {:name :Jane :parents [:Jack :Rose]}]]
+    (is (= (o/transform
+             data
+             (o/and
+               (d/query data ?person :name ?name)
+               (d/query-in data ?child [:parents _] ?name)
+               (d/query data ?child :name ?child-name)
+               (o/update ?person :children))
+             (fnil conj #{})
+             ?child-name)
+
+           [{:name    :Bill
+             :parents [:Sam :Jane]}
+            {:name    :Tom
+             :parents [:Jane :Sam]}
+            {:name     :Sam
+             :children #{:Bill :Tom}
+             :parents  [:Edward :Erin]}
+            {:name     :Jane
+             :children #{:Bill :Tom}
+             :parents  [:Jack :Rose]}]))))
+
+
+(deftest projection-tests
+  (is (= (set (o/for-query
+                (o/project
+                  1 ?b)
+                ?b))
+         #{1}))
+
+  (is (= (set (o/for-query
+                (o/project
+                  (range 10) [?x ...])
+                ?x))
+         (set (range 10))))
+
+  (is (= (set (o/for-query
+                (o/project
+                  [1 2 3] [?v ...]
+                  (* ?v ?v) ?r)
+                ?r))
+         #{1 4 9})))
+
+
+
+
