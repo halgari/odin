@@ -2,8 +2,7 @@
   (:require [datomic.api :as d]
             [com.tbaldridge.odin.contexts.datomic :refer [datoms]]
             [com.tbaldridge.odin :as o]
-            [clojure.test :refer :all])
-  (:import (java.io Writer)))
+            [clojure.test :refer :all]))
 
 (set! *warn-on-reflection* true)
 
