@@ -65,6 +65,10 @@
     (tabling/defrule-impl name args body)
     (u/defrule-impl name args body)))
 
+(defmacro switch
+  [& {:as bodies}]
+  (u/switch-impl bodies))
+
 (defn =
   "Creates a query that unifies two more more values or lvars."
   ([a b]

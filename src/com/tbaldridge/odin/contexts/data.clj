@@ -69,7 +69,7 @@
 
 
 (defn map-path [v]
-  (let [p empty-path]
+  (let [p ^::path []]
     (cond
 
       (map? v)
@@ -88,6 +88,10 @@
         cat
         v))))
 
+(defn path? [p]
+  (and (vector? p)
+       (::path (meta p))))
+
 (deftype IndexedData [coll index])
 
 (defn path-seq [^Path path]
@@ -95,6 +99,21 @@
     (cons path (lazy-seq (path-seq (.-nxt path))))))
 
 (def conj-list (fnil conj '()))
+
+(defn parent-vectors [v]
+  (assert (vector? v) "Path must be a vector")
+  (when (seq v)
+    (reify
+      clojure.lang.IReduceInit
+      (reduce [this f init]
+        (loop [acc init
+               v   (pop v)]
+          (let [result (f acc v)]
+            (if (reduced? result)
+              @result
+              (if (empty? v)
+                result
+                (recur result (pop v))))))))))
 
 (defn index-data
   "Indexes a collection for use in a call to `query`. Greater performance
@@ -109,12 +128,13 @@
                       (util/assoc-in! [:eav p a] v)
                       (util/update-in! [:ave a v] conj-list p)
                       (util/update-in! [:vea v p] conj-list a))]
-          (if (instance? Path v)
+          (if (path? v)
             (reduce
               (fn [acc p]
                 (util/update-in! acc [:paths p] conj-list v))
               acc
-              p)
+              (prefix p
+                      (parent-vectors p)))
             acc)))
       nil
       (map-path coll))
@@ -197,23 +217,6 @@
     (query coll p h v)))
 
 
-
-#_(o/defrule parent-of [data ?p ?c]
-  (o/or
-    (o/= ?p ?c)
-    (o/and
-      (query data ?p _ ?ic)
-      (u/lazy-rule (parent-of data ?ic ?c)))))
-
-(defn children-paths [data ?p]
-  (let [index (:paths (coll-index data))
-        inner-fn (fn inner-fn [index parent]
-                   (mapcat
-                     (fn [v]
-                       (cons v (inner-fn index v)))
-                     (get index parent)))]
-    (inner-fn index ?p)))
-
 (defn parent-of [data ?p ?c]
   (mapcat
     (fn [env]
@@ -221,9 +224,21 @@
             p' (u/walk env ?p)
             c' (u/walk env ?c)]
         (util/truth-table [(u/lvar? p') (u/lvar? c')]
-                          [false true] (let [index (:paths (coll-index data'))]
-                                         (util/efor [c (get index p')]
-                                           (assoc env ?c c))))))))
+          [false true] (let [index (:paths (coll-index data'))]
+                         (util/efor [c (get index p')]
+                           (assoc env ?c c)))
+          [true false] (do
+                         (assert (vector? c') "Child value in parent-of must be a vector")
+                         (when (seq c')
+                           (eduction
+                             (map #(assoc env p' %))
+                             (parent-vectors c'))))
+          [false false] (when (transduce
+                                (filter (partial = p'))
+                                util/first-rf
+                                (parent-vectors c'))
+                          [env])
+          )))))
 
 (defn == [a b]
   (keep

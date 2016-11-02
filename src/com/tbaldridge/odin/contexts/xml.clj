@@ -28,12 +28,16 @@
 
 
 (comment
+  (require '[clojure.data.xml :as xml])
   (xml/parse-str "<h1><div>42</div></h1>")
   (def data (xml/parse-str (time (slurp "https://api.eve-central.com/api/quicklook?typeid=34"))))
 
+  (count (vec (d/map-path data)))
 
   (dotimes [x 10]
-    (time (d/index-data data)))
+    (time (sort
+
+            (time ))))
 
   (vec (o/transform-query
          {:a {:b {:c 42}}}

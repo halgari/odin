@@ -58,8 +58,24 @@
   (assoc env a b))
 
 
-(defn unify [env a b]
-  (-unify env (walk env a) (walk env b)))
+(defn unify
+  ([env a b]
+   (when env
+     (-unify env (walk env a) (walk env b))))
+  ([env a b c d]
+   (-> env
+       (unify a b)
+       (unify c d)))
+  ([env a b c d e f]
+   (-> env
+       (unify a b)
+       (unify c d)
+       (unify e f)))
+  ([env a b c d e f & more]
+   (apply unify (-> env
+                    (unify a b)
+                    (unify c d)
+                    (unify e f)) more)))
 
 
 (defmethod print-method LVar
@@ -120,41 +136,60 @@
 
 
 
-(s/def ::bind-projection simple-symbol?)
-(s/def ::cat-projection (s/spec (s/cat :bind simple-symbol?
+(s/def ::bind-projection any?)
+(s/def ::cat-projection (s/spec (s/cat :bind any?
                                        :cat #{'...})))
 
 (s/def ::projection (s/cat :expr any?
-                           :projection (s/alt :bind ::bind-projection
-                                              :cat ::cat-projection)))
+                           :projection (s/alt :cat ::cat-projection
+                                              :bind ::bind-projection)))
 
 (s/def ::projections (s/cat :goals (s/* ::projection)))
 
+(defn clean-projection [body]
+  (walk/postwalk
+    (fn [form]
+      (if (= form `(lvar))
+        '_
+        form))
+    body))
+
 (defn project-impl [{:keys [expr projection] :as clause}]
-  (let [[type proj] projection]
-    (println "->> " expr type proj)
+  (let [[type proj] projection
+        proj (clean-projection proj)]
     (let [[lvars expr] (body-lvars expr)
           env-sym (gensym "env_")]
       (case type
-        :bind `(keep
-                 (fn [~env-sym]
-                   (let [~@(interleave
-                             lvars
-                             (map (fn [lvar]
-                                    `(walk ~env-sym ~lvar))
-                                  lvars))]
-                     (unify ~env-sym ~proj ~expr))))
-        :cat (let [{:keys [bind]} proj]
+        :bind (let [[proj-lvars] (body-lvars proj)
+                    ; ^^ Don't use the xformed expr since that will mess with Clojure's destructuring macro
+                    new-proj-names (map #(gensym (name %)) proj-lvars)]
+                `(keep
+                   (fn [~env-sym]
+                     (let [~@(interleave
+                               lvars
+                               (map (fn [lvar]
+                                      `(walk ~env-sym ~lvar))
+                                    lvars))
+                           ~@(interleave new-proj-names proj-lvars)
+                           ~proj ~expr]
+                       (unify ~env-sym ~@(interleave new-proj-names proj-lvars))))))
+        :cat (let [{:keys [bind]} proj
+                   ;; Don't use the xformed expr since that will mess with Clojure's destructuring macro
+                   ;; Since '_ will be transformed into `(lvar)
+                   [proj-lvars] (body-lvars bind)
+                   new-proj-names (map #(gensym (name %)) proj-lvars)]
                `(mapcat
                   (fn [~env-sym]
                     (let [~@(interleave
                               lvars
                               (map (fn [lvar]
                                      `(walk ~env-sym ~lvar))
-                                   lvars))]
+                                   lvars))
+                          ~@(interleave new-proj-names proj-lvars)]
                       (eduction
                         (keep
-                          (partial unify ~env-sym ~bind))
+                          (fn [~bind]
+                            (unify ~env-sym ~@(interleave new-proj-names proj-lvars))))
                         ~expr)))))))))
 
 (defn project-impls [clauses]
@@ -285,3 +320,41 @@
                                         `(walk ~env-sym ~lvar)) args-lvars))]
                (~f old# ~@args-form))))))))
 
+
+
+
+(defn switch-impl [bodies]
+  (let [columns  (->> bodies
+                      keys
+                      (apply map hash-set)
+                      (map #(disj % '_ `(lvar)))
+                      (map (fn [column]
+                             (assert (= (count column) 1)
+                                     (str "Switch statement can only have a single lvar or _ for each column, got " (pr-str column)))
+                             (first column)))
+                      vec)
+        body-map (zipmap
+                   (->> (keys bodies)
+                        (map
+                          (fn [a]
+                            (mapv #(contains? #{'_ `(lvar)} %) a))))
+                   (vals bodies))
+        fns-sym  (gensym "fns")
+        acc-sym  (gensym "acc")
+        itm-sym  (gensym "itm")]
+    `(fn [xf#]
+       (let [~fns-sym (mapv
+                        (fn [f#]
+                          (f# xf#))
+                        [~@(vals body-map)])]
+         (fn
+           ([] (xf#))
+           ([acc#] (xf# acc#))
+           ([~acc-sym ~itm-sym]
+            (util/truth-table ~(vec (for [column columns]
+                                      `(lvar? (walk ~itm-sym ~column))))
+              ~@(apply concat
+                       (map-indexed
+                         (fn [idx [k v]]
+                           [k `((get ~fns-sym ~idx) ~acc-sym ~itm-sym)])
+                         body-map)))))))))

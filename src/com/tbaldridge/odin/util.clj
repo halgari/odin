@@ -4,6 +4,11 @@
   (:import (java.util Map HashMap)))
 
 
+(defn first-rf
+  ([] nil)
+  ([acc] acc)
+  ([acc itm]
+    (reduced itm)))
 
 (defmacro efor [[bind coll & rest] body]
   (if rest
