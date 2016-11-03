@@ -2,35 +2,9 @@
   (:refer-clojure :exclude [==])
   (:require [com.tbaldridge.odin :as o]
             [com.tbaldridge.odin.unification :as u]
-            [com.tbaldridge.odin.util :as util])
-  (:import (java.io Writer)))
+            [com.tbaldridge.odin.util :as util]))
 
 (set! *warn-on-reflection* true)
-
-(defprotocol IPath
-  (add-to-path [this val]))
-
-(deftype Path [v nxt clj-path]
-  IPath
-  (add-to-path [this val]
-    (Path. val this (conj clj-path val)))
-  clojure.lang.IReduceInit
-  (reduce [this f init]
-    (.reduce ^clojure.lang.IReduceInit clj-path f init)))
-
-(extend-protocol IPath
-  nil
-  (add-to-path [this val]
-    (->Path val this [val])))
-
-
-(def empty-path (->Path nil nil []))
-
-(defmethod print-method Path
-  [^Path p ^Writer w]
-  (.write w "Path<")
-  (.write w (pr-str (.-clj_path p)))
-  (.write w ">"))
 
 (defn prefix [itm rc]
   (reify
@@ -46,7 +20,7 @@
 (defn map-value [p k v]
   (cond
     (map? v)
-    (let [next-path (add-to-path p k)]
+    (let [next-path (conj p k)]
       (prefix [p k next-path]
               (eduction
                 (mapcat (fn [[k v]]
@@ -56,7 +30,7 @@
     (and (sequential? v)
          (not (string? v)))
 
-    (let [next-path (add-to-path p k)]
+    (let [next-path (conj p k)]
       (prefix [p k next-path]
               (eduction
                 (map-indexed
