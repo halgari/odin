@@ -68,10 +68,6 @@
 
 (deftype IndexedData [coll index])
 
-(defn path-seq [^Path path]
-  (when path
-    (cons path (lazy-seq (path-seq (.-nxt path))))))
-
 (def conj-list (fnil conj '()))
 
 (defn parent-vectors [v]
