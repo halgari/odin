@@ -1,4 +1,4 @@
-(ns com.tbaldridge.com.tbaldridge.contexts.datomic-test
+(ns com.tbaldridge.contexts.datomic-test
   (:require [datomic.api :as d]
             [com.tbaldridge.odin.contexts.datomic :refer [datoms]]
             [com.tbaldridge.odin :as o]

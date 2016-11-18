@@ -3,7 +3,7 @@
   (:require [com.tbaldridge.odin :as o]
             [com.tbaldridge.odin.unification :as u]
             [com.tbaldridge.odin.contexts.data :as d]
-            [clojure.test :refer :all]))
+            [clojure.test :refer [deftest is testing]]))
 
 
 (deftest basic-query-test

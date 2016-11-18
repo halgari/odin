@@ -85,6 +85,13 @@
                 result
                 (recur result (pop v))))))))))
 
+{:eav   {}
+ :ave   {}
+ :vea   {}
+ :paths {[]      [[:a] [:a :b] [:a :b :c]]
+         [:a]    [[:a :b] [:a :b :c]]
+         [:a :b] [[:a :b :c]]}}
+
 (defn index-data
   "Indexes a collection for use in a call to `query`. Greater performance
     can be found by indexing a collection once and re-using the index for
@@ -109,6 +116,7 @@
       nil
       (map-path coll))
     (->IndexedData coll)))
+
 
 
 (defn coll-index
@@ -185,7 +193,6 @@
         (query coll p h cvar)
         (query-in coll cvar t v)))
     (query coll p h v)))
-
 
 (defn parent-of [data ?p ?c]
   (mapcat

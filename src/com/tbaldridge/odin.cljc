@@ -124,3 +124,11 @@
       (= ?path u/xform-path)
       (= ?attr u/xform-attr))))
 
+(defmacro cache-in-context
+  "Runs an expression and caches the result under k in the query context. Should use
+  namespaced keys to keep from conflicting with other caches. This construct is useful
+  for performing one-time calcuations that will live for the life of the query or the life
+  of a with-query-ctx call. "
+  [k body]
+  (u/cache-in-context-impl k body))
+
