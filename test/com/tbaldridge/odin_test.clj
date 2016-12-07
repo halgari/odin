@@ -3,7 +3,7 @@
   (:require [com.tbaldridge.odin :as o]
             [com.tbaldridge.odin.unification :as u]
             [com.tbaldridge.odin.contexts.data :as d]
-            [clojure.test :refer :all]))
+            [clojure.test :refer [deftest is testing]]))
 
 
 (deftest basic-query-test
@@ -210,8 +210,109 @@
                   [1 2 3] [?v ...]
                   (* ?v ?v) ?r)
                 ?r))
-         #{1 4 9})))
+         #{1 4 9}))
+
+  (testing "binding destructuring with simple binding"
+    (is (= (set (o/for-query
+                  (o/project
+                    [1 2] [?a ?b]
+                    (- ?b ?a) ?c)
+                  ?c))
+           #{1})))
+
+  (testing "binding destructuring with cat"
+    (is (= (set (o/for-query
+                  (o/project
+                    (eduction
+                      (map (juxt dec inc))
+                      (range 4)) [[?a ?b] ...]
+                    (- ?b ?a) ?c)
+                  ?c))
+           #{2})))
+  )
+
+(o/defrule add-dispatch [?a ?b ?c]
+  (o/switch
+    [?a ?b _] (o/project
+                (+ ?a ?b) ?c)
+    [?a _ ?c] (o/project
+                (- ?c ?a) ?b)
+    [_ ?b ?c] (o/project
+                (- ?c ?b) ?a)
+    [?a ?b ?c] (o/when
+                 (= (+ ?a ?b) ?c))))
+
+(deftest test-switch
+  (is (= (set (o/for-query
+                (o/and
+                  (o/project
+                    (range 3) [?x ...])
+                  (add-dispatch ?x 1 ?y))
+                ?y))
+         #{1 2 3}))
+
+  (is (= (set (o/for-query
+                (o/and
+                  (o/project
+                    (range 3) [?y ...])
+                  (add-dispatch ?x 1 ?y))
+                ?x))
+         #{-1 0 1}))
+
+  (is (= (set (o/for-query
+                (o/and
+                  (o/project
+                    (range 1 4) [?y ...])
+                  (o/project
+                    (range 0 3) [?x ...])
+                  (add-dispatch ?x 1 ?y))
+                ?x))
+         #{0 1 2}))
+
+  (is (= (set (o/for-query
+                (o/and
+                  (o/= ?x 1)
+                  (o/project
+                    (range 0 3) [?y ...])
+                  (add-dispatch ?x ?z ?y))
+                ?z))
+         #{0 1 -1})))
 
 
+(deftest parent-of-tests
+  (let [data {:depth 1
+              :a {:depth 2
+                  :b {:depth 3
+                      :c {:depth 4}}}}]
+    (is (= (set (o/for-query
+                  (o/and
+                    (d/query data ?c :depth 4)
+                    (d/parent-of data ?p ?c)
+                    (d/query data ?p :depth ?pd))
+                  ?pd))
+           #{1 2 3}))
 
+    (is (= (set (o/for-query
+                  (o/and
+                    (d/query data ?c :depth 2)
+                    (d/parent-of data ?p ?c)
+                    (d/query data ?p :depth ?pd))
+                  ?pd))
+           #{1}))
 
+    (is (= (set (o/for-query
+                  (o/and
+                    (d/query data ?p :depth 2)
+                    (d/parent-of data ?p ?c)
+                    (d/query data ?c :depth ?pd))
+                  ?pd))
+           #{3 4}))
+
+    (is (= (set (o/for-query
+                  (o/and
+                    (d/query data ?p :depth 2)
+                    (d/query data ?c :depth 3)
+                    (d/parent-of data ?p ?c)
+                    (o/= ?pd 42))
+                  ?pd))
+           #{42}))))
