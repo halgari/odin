@@ -6,8 +6,7 @@
             [clojure.spec :as s]
             [com.tbaldridge.odin.util :refer [body-lvars]]
             [com.tbaldridge.odin.util :as util])
-  #?(:clj
-     (:import (java.io Writer))))
+    (:import (java.io Writer)))
 
 
 (def ^:dynamic *query-ctx* nil)
@@ -41,8 +40,6 @@
 (defmulti -unify (fn [env a b]
                    [(type a) (type b)]))
 
-#?(:cljs
-   (def Object js/object))
 
 (defmethod -unify [Object Object]
   [env a b]
@@ -81,10 +78,9 @@
                     (unify c d)
                     (unify e f)) more)))
 
-#?(:clj
-   (defmethod print-method LVar
-     [v ^Writer w]
-     (.write w (str "LVar@" (System/identityHashCode v)))))
+(defmethod print-method LVar
+           [v ^Writer w]
+           (.write w (str "LVar@" (System/identityHashCode v))))
 
 (defn == [a b]
   (keep

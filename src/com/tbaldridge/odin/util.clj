@@ -1,8 +1,7 @@
 (ns com.tbaldridge.odin.util
   (:require [clojure.walk :as walk]
             [clojure.string :as str])
-  #?(:clj
-     (:import (java.util Map HashMap))))
+    (:import (java.util Map HashMap)))
 
 
 (defn first-rf
@@ -81,29 +80,22 @@
                   (apply f data args)))]
     (inner data pth f args)))
 
+(defn assoc-in! [^Map coll [h & t] v]
+      (let [^Map coll (or coll (HashMap.))]
+           (if t
+             (.put coll h (assoc-in! (get coll h) t v))
+             (.put coll h v))
+           coll))
 
-#?(:clj
-   (defn assoc-in! [^Map coll [h & t] v]
-     (let [^Map coll (or coll (HashMap.))]
-       (if t
-         (.put coll h (assoc-in! (get coll h) t v))
-         (.put coll h v))
-       coll))
+(defn update-in! [coll path f & args]
+      (let [pfn (fn inner [^Map coll [h & t] f args]
+                    (let [^Map coll (or coll (HashMap.))]
+                         (if t
+                           (.put coll h (inner (get coll h) t f args))
+                           (.put coll h (apply f (get coll h) args)))
+                         coll))]
+           (pfn coll path f args)))
 
-   :cljs
-   (def assoc-in! assoc-in))
-
-#?(:clj
-   (defn update-in! [coll path f & args]
-     (let [pfn (fn inner [^Map coll [h & t] f args]
-                 (let [^Map coll (or coll (HashMap.))]
-                   (if t
-                     (.put coll h (inner (get coll h) t f args))
-                     (.put coll h (apply f (get coll h) args)))
-                   coll))]
-       (pfn coll path f args)))
-   :cljs
-   (def update-in! update-in))
 
 
 

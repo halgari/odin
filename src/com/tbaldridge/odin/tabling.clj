@@ -5,8 +5,7 @@
             [clojure.walk :as walk]
             [clojure.string :as str]
             [com.tbaldridge.odin.util :as util])
-  #?(:clj
-     (:import [com.tbaldridge.odin.unification LVar])))
+    (:import [com.tbaldridge.odin.unification LVar]))
 
 
 
