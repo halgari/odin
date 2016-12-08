@@ -6,7 +6,8 @@
             [clojure.spec :as s]
             [com.tbaldridge.odin.util :refer [body-lvars]]
             [com.tbaldridge.odin.util :as util])
-    (:import (java.io Writer)))
+  (:import (java.io Writer)
+           (clojure.lang Sequential ISeq)))
 
 
 (def ^:dynamic *query-ctx* nil)
@@ -23,6 +24,9 @@
 (defn with-tracing [prefix lvars & clauses]
   (apply comp (tracing-impl prefix lvars) clauses))
 
+(defprotocol ILCons
+  (lfirst [this])
+  (lnext [this]))
 
 (deftype LVar [])
 
@@ -37,14 +41,26 @@
     (recur env a)
     a))
 
+(declare unify)
+
+(defn type-for [x]
+  (if (satisfies? ILCons x)
+    clojure.lang.Sequential
+    (type x)))
+
+
 (defmulti -unify (fn [env a b]
-                   [(type a) (type b)]))
+                   [(type-for a) (type-for b)]))
 
 
 (defmethod -unify [Object Object]
   [env a b]
   (when (= a b)
     env))
+
+(defmethod -unify [nil nil]
+  [env a b]
+  env)
 
 (defmethod -unify [LVar Object]
   [env a b]
@@ -57,6 +73,28 @@
 (defmethod -unify [LVar LVar]
   [env a b]
   (assoc env a b))
+
+(defmethod -unify [Sequential Sequential]
+  [env a b]
+  (-> env
+      (unify (lfirst a) (lfirst b))
+      (unify (lnext a) (lnext b))))
+
+(extend-protocol ILCons
+  clojure.lang.Sequential
+  (lfirst [this]
+    (first this))
+  (lnext [this]
+    (next this)))
+
+
+(deftype LCons [head tail]
+  ILCons
+  (lfirst [this]
+    head)
+  (lnext [this]
+    tail))
+
 
 
 (defn unify
@@ -225,7 +263,7 @@
                  (map (fn [lvar]
                         `(lvar))
                       lvars))]
-         ~@body))))
+         ~body))))
 
 
 (defn just [x]
@@ -321,6 +359,14 @@
                (~f old# ~@args-form))))))))
 
 
+(defn invoke [?arg]
+  (mapcat
+    (fn [env]
+      (let [arg' (walk env ?arg)]
+        (assert (not (lvar? arg')) "Arg must be bound in invoke")
+        (eduction
+          arg'
+          (just env))))))
 
 
 (defn switch-impl [bodies]

@@ -316,3 +316,32 @@
                     (o/= ?pd 42))
                   ?pd))
            #{42}))))
+
+(deftest lcons-test
+  (testing "basic cons comparisons"
+    (is (= (set (o/for-query
+                  (o/= [1 2 3] [?x 2 3])
+                  ?x))
+           #{1}))
+
+    (is (= (set (o/for-query
+                  (o/= [1 2 1] [?x 2 ?x])
+                  ?x))
+           #{1}))
+
+    (is (= (set (o/for-query
+                  (o/= [1 2 1] [0 0 ?x])
+                  ?x))
+           #{}))
+
+    (is (= (set (o/for-query
+                  (o/= [1 2 3] [?x ?y ?z])
+                  [?x ?y ?z]))
+           #{[1 2 3]}))
+
+    (is (= (set (o/for-query
+                  (o/and
+                    (o/= ?v [1 2 3])
+                    (o/lcons ?h ?t ?v))
+                  [?h ?t]))
+           #{[1 [2 3]]}))))

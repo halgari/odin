@@ -1,5 +1,5 @@
 (ns com.tbaldridge.odin
-  (:refer-clojure :exclude [or and = update when])
+  (:refer-clojure :exclude [or and = update when apply])
   (:require [com.tbaldridge.odin.unification :as u]
             [com.tbaldridge.odin.tabling :as tabling]
             [com.tbaldridge.odin.util :as util]
@@ -18,18 +18,18 @@
 (defn and
   "Creates a conjunction between one or more query clauses"
   [& clauses]
-  (apply u/conjunction clauses))
+  (clj/apply u/conjunction clauses))
 
 (defn or
   "Creates a disjunction between one or more query clauses"
   [& clauses]
-  (apply u/disjunction clauses))
+  (clj/apply u/disjunction clauses))
 
 (defn =
   ([a] a)
   ([a b] (u/== a b))
   ([a b & c]
-    (apply = (= a b) c)))
+    (clj/apply = (= a b) c)))
 
 
 (defmacro for-query
@@ -74,7 +74,7 @@
   ([a b]
    (u/== a b))
   ([a b & rest]
-   (apply and (= a b) rest)))
+   (clj/apply and (= a b) rest)))
 
 (defmacro lazy-rule
   "Rules in Odin are eagerly created. This means that recursive rules
@@ -88,7 +88,7 @@
   [prefix & args]
   (map
     (fn [env]
-      (apply println prefix (map (partial u/walk env) args))
+      (clj/apply println prefix (map (partial u/walk env) args))
       env)))
 
 (defmacro with-query-ctx
@@ -132,3 +132,19 @@
   [k body]
   (u/cache-in-context-impl k body))
 
+(defn invoke [?arg]
+  (u/invoke ?arg))
+
+(defn lcons [head tail cons]
+  (u/== (u/->LCons head tail) cons))
+
+(comment
+  (require '[clojure.test.check.random :as r])
+
+  (def r (r/make-random))
+
+  (split-seq)
+
+  (r/rand-double (first (r/split r)))
+
+  )
