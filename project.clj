@@ -1,4 +1,4 @@
-(defproject com.tbaldridge/odin "0.2.0"
+(defproject com.tbaldridge/odin "0.3.0-SNAPSHOT"
   :description "A declarative query DSL for Clojure"
   :url "http://github.com/halgari/odin"
   :license {:name "Eclipse Public License"

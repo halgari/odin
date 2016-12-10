@@ -217,6 +217,11 @@ transducers and as such is extensible with Clojure primitives like `mapcat` and 
 A: Odin is fairly generic, and as such will probably not out perform more optimized tailor-made solutions. 
 
 
+## Prior Work
+
+### muKanren
+The core of this engine is a highly modified variant of muKanren. The paper found here,
+is invaluable: http://webyrd.net/scheme-2013/papers/HemannMuKanren2013.pdf
 
 ## License
 
