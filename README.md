@@ -1,4 +1,4 @@
-# odin
+# Odin
 
 An embedded extensible logic programming DSL for CLojure
 
@@ -6,12 +6,12 @@ An embedded extensible logic programming DSL for CLojure
 # Rationale 
 
 Clojure programmers tend to prefer data-structures over objects for transferring and storing information. Often
-manipulations of these structures consists of collecting data from one set of data using reduce, walk, or recursive functions,
+manipulations of these structures consists of collecting information from one set of data using reduce, walk, or recursive functions,
 and then these results are projected into output collections to be processed by other functions before finally being written
 to an output data store or perhaps transmitted to some other client. 
 
-These collections of reduce, walk and processing functions could be viewed as ad-hoc, hard coded query languages. Odin aims to
-be a generic, logic based, query language for Clojure data sources. These sources could be raw Clojure data structures, XML,
+These operations of reduce, walk and processing functions could be viewed as ad-hoc, hard coded query languages.
+Odin aims to simplify these operations by providing a generic, logic based, query language for Clojure data sources. These sources could be raw Clojure data structures, XML,
 databases, etc. 
 
 Other logic languages may have other trade-offs and benefits, but Odin attempts to hit the "sweet spot" between performance,
@@ -203,9 +203,10 @@ if the provided vars are bound.
 ## Q/A
 
 ### Q: Why would I use this over Datomic Datalog?
-A: Datalog is set-based. You always get all the answers. Odin's query language is lazy, you can get one answer, 100, or 
+A: Datalog is set-based, therefore you always get all the answers. Odin's query language is lazy, you can get one answer, 100, or 
 all the answers to a query, only as many answers as are requested will be processed. Odin also supports querying efficiently
-over Clojure data. This can also be done with Datomic Datalog, but it's not as streamlined. 
+over Clojure data. This can also be done with Datomic Datalog, but it's not as streamlined. Datomic's approach does have 
+benifits, the set-based approach will vastly outperform Odin's lazy approach when all results are required.
 
 ### Q: Why would I use this over core.logic?
 A: Core.Logic is a more general purpose logic language. Odin is aimed to be a query language that is easy to extend. Core.Logic's
