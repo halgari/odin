@@ -205,7 +205,7 @@ if the provided vars are bound.
 A: Datalog is set-based, therefore you always get all the answers. Odin's query language is lazy, you can get one answer, 100, or 
 all the answers to a query, only as many answers as are requested will be processed. Odin also supports querying efficiently
 over Clojure data. This can also be done with Datomic Datalog, but it's not as streamlined. Datomic's approach does have 
-benifits, the set-based approach will vastly outperform Odin's lazy approach when all results are required.
+benefits, the set-based approach will vastly outperform Odin's lazy approach when all results are required.
 
 ### Q: Why would I use this over core.logic?
 A: Core.Logic is a more general purpose logic language. Odin is aimed to be a query language that is easy to extend. Core.Logic's
