@@ -105,10 +105,11 @@ Relationships between query clauses can be defined by using `o/and`. For example
 bank accounts:
 
 ```clojure
-(def accounts {:fred {:credits 1000 :debits  500}
-               :sam  {:credits  220 :debits  300}
-               :sue  {:credits 3300 :debits  100}
-               :jane {:credits 2000 :debits 1000}})
+(def accounts 
+  {:fred {:credits 1000 :debits  500}
+   :sam  {:credits  220 :debits  300}
+   :sue  {:credits 3300 :debits  100}
+   :jane {:credits 2000 :debits 1000}})
                
 (into {}
   (for-query
@@ -118,9 +119,9 @@ bank accounts:
       (d/query data _ ?name ?account))
     [?account (- ?credits ?debits)]))
     
-;=> {:fred 500
-;    :sam -80
-;    :sue 3200
+;=> {:fred  500
+;    :sam   -80
+;    :sue  3200
 ;    :jane 1000}
 ```
          
@@ -187,7 +188,6 @@ with Datomic.
   (:require [datomic.api :as d]
             [com.tbaldridge.odin :as o]))
 
-
 (o/defrule datoms [?db ?e ?a ?v]
   (o/switch
     [?e ?a ?v] (o/when
@@ -215,17 +215,20 @@ if the provided vars are bound.
 ## Q/A
 
 ### Q: Why would I use this over Datomic Datalog?
+
 A: Datalog is set-based, therefore you always get all the answers. Odin's query language is lazy, you can get one answer, 100, or 
 all the answers to a query, only as many answers as are requested will be processed. Odin also supports querying efficiently
 over Clojure data. This can also be done with Datomic Datalog, but it's not as streamlined. Datomic's approach does have 
 benefits, the set-based approach will vastly outperform Odin's lazy approach when all results are required.
 
 ### Q: Why would I use this over core.logic?
+
 A: Core.Logic is a more general purpose logic language. Odin is aimed to be a query language that is easy to extend. Core.Logic's
 use of monads may carry less restrictions, but they pose a challenge to anyone looking to integrate with the library. Odin uses
 transducers and as such is extensible with Clojure primitives like `mapcat` and `keep`.
 
 ### Q: Why shouldn't I use Odin?
+
 A: Odin is fairly generic, and as such will probably not out perform more optimized tailor-made solutions. 
 
 ## Prior Work
