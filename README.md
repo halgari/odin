@@ -82,8 +82,8 @@ that any query parameter that is specified using `_` is interpreted as a wildcar
     (def data {:a 1 :b 2 :c 3})
     
     (into {}
-      (for-query
-        (o/query data _ _ ?val)
+      (o/for-query
+        (d/query data _ _ ?val)
         [?val (* ?val ?val)]))
         
     ;; => {1 1
@@ -94,13 +94,13 @@ that any query parameter that is specified using `_` is interpreted as a wildcar
 Relationships between query clauses can be defined by using `o/and`. For example, let's find out the balance of all 
 bank accounts:
 
-    (def accounts {:fred {:credits 1000 :debits 500}
-                   :sam {:credits 220 :debits 300}
-                   :sue {:credits 3300 :debits 100}
-                   :jane {:credits 2000 :debits 1000}})
+    (def data {:fred {:credits 1000 :debits 500}
+               :sam {:credits 220 :debits 300}
+               :sue {:credits 3300 :debits 100}
+               :jane {:credits 2000 :debits 1000}})
                    
     (into {}
-      (for-query
+      (o/for-query
         (o/and
           (d/query data ?account :credits ?credits)
           (d/query data ?account :debits ?debits)
@@ -126,7 +126,7 @@ specifies the negative balance of the account.
           (d/query data ?account :credits ?credits)
           (d/query data ?account :debits ?debits)
           (o/project
-            (- ?credits ?debits) ?balance
+            (- ?credits ?debits) ?balance)
           (o/when (neg? ?balance))
           (o/update ?account))
         assoc :overdrawn/balance ?balance)
