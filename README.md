@@ -19,6 +19,15 @@ Other logic languages may have other trade-offs and benefits, but Odin attempts 
   the total run time of a query is not the top priority. 
 
 
+# Usage 
+
+Odin makes use of `clojure.spec` internally so in order to use it you need at least Clojure 1.9.0, which is not out yet. To get the latest alpha and use Odin add
+```
+[org.clojure/clojure "1.9.0-alpha14"]
+[com.tbaldridge/odin "0.2.0"]
+```
+to your dependencies.
+
 # Tutorial 
 
 First of all we need to import the proper namespaces. Most of the code involved in querying data is found in `com.tbaldridge.odin`.
