@@ -19,6 +19,15 @@ Other logic languages may have other trade-offs and benefits, but Odin attempts 
   the total run time of a query is not the top priority. 
 
 
+# Usage 
+
+Odin makes use of `clojure.spec` internally so in order to use it you need at least Clojure 1.9.0, which is not out yet. To get the latest alpha and use Odin add
+```
+[org.clojure/clojure "1.9.0-alpha14"]
+[com.tbaldridge/odin "0.2.0"]
+```
+to your dependencies.
+
 # Tutorial 
 
 First of all we need to import the proper namespaces. Most of the code involved in querying data is found in `com.tbaldridge.odin`.
@@ -82,8 +91,8 @@ that any query parameter that is specified using `_` is interpreted as a wildcar
     (def data {:a 1 :b 2 :c 3})
     
     (into {}
-      (for-query
-        (o/query data _ _ ?val)
+      (o/for-query
+        (d/query data _ _ ?val)
         [?val (* ?val ?val)]))
         
     ;; => {1 1
@@ -94,13 +103,13 @@ that any query parameter that is specified using `_` is interpreted as a wildcar
 Relationships between query clauses can be defined by using `o/and`. For example, let's find out the balance of all 
 bank accounts:
 
-    (def accounts {:fred {:credits 1000 :debits 500}
-                   :sam {:credits 220 :debits 300}
-                   :sue {:credits 3300 :debits 100}
-                   :jane {:credits 2000 :debits 1000}})
+    (def data {:fred {:credits 1000 :debits 500}
+               :sam {:credits 220 :debits 300}
+               :sue {:credits 3300 :debits 100}
+               :jane {:credits 2000 :debits 1000}})
                    
     (into {}
-      (for-query
+      (o/for-query
         (o/and
           (d/query data ?account :credits ?credits)
           (d/query data ?account :debits ?debits)
@@ -126,7 +135,7 @@ specifies the negative balance of the account.
           (d/query data ?account :credits ?credits)
           (d/query data ?account :debits ?debits)
           (o/project
-            (- ?credits ?debits) ?balance
+            (- ?credits ?debits) ?balance)
           (o/when (neg? ?balance))
           (o/update ?account))
         assoc :overdrawn/balance ?balance)
