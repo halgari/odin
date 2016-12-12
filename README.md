@@ -100,12 +100,12 @@ bank accounts:
                    :jane {:credits 2000 :debits 1000}})
                    
     (into {}
-      (for-query
+      (o/for-query
         (o/and
-          (d/query data ?account :credits ?credits)
-          (d/query data ?account :debits ?debits)
-          (d/query data _ ?name ?account))
-        [?account (- ?credits ?debits)]))
+          (d/query accounts ?account :credits ?credits)
+          (d/query accounts ?account :debits ?debits)
+          (d/query accounts _ ?name ?account))
+        [?name (- ?credits ?debits)]))
         
     ;=> {:fred 500
          :sam -80
