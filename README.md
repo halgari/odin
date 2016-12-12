@@ -39,10 +39,10 @@ the datasource is a query instead of a set of sequences. The syntax of `for-quer
        
 Let's say we have this collection of data:
 
-     (def data {:val 40
-                     :sub {:val 3
-                           :sub {:val -1}}})
-                      
+    (def data {:val 40
+               :sub {:val 3
+                     :sub {:val -1}}})
+
 Using this data we can query for all the values found under a :val key.
 
     (o/for-query
