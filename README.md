@@ -60,9 +60,9 @@ we can simply hand this result to a function like `clojure.core.set` to realize 
     
 As we can see, `d/query` presents a tuple interface on Clojure data collections. This tuple consists of a path (much like
 a path that would be handed to `get-in`), an attribute, and a value. The second part of the `for-query` is the projection
-and it's simple a form that describes what value should be returned for each value found.
+and it's simply a form that describes what value should be returned for each value found.
 
-For more advanced queries, Odin supports conjunctions, and simple predicate guards:
+For more advanced queries, Odin supports conjunctions, and predicate guards:
 
 
     (set (o/for-query
@@ -73,11 +73,10 @@ For more advanced queries, Odin supports conjunctions, and simple predicate guar
            
     ;=> #{3 -1}
            
-`o/and` provides a way to combine multiple queries in a conjunction (or a "and"). `o/when` takes a single argument form. This 
-form should return false if a given expression should be filtered out of the result set. 
+`o/and` provides a way to combine multiple queries via a conjunction (or a "and"). `o/when` takes a single argument form. This form should return false if a given expression should be filtered out of the result set. 
 
 Projections (the second form in the `for-query`) are simply Clojure expressions where the query values (symbols prefixed
-with `?`) are bound to query results. So we can use arbitrary logic in these forms. In addition, it should be mentioned
+with `?`) are bound to query results. We can use arbitrary Clojure logic in these forms. In addition, it should be mentioned
 that any query parameter that is specified using `_` is interpreted as a wildcard. 
  
     (def data {:a 1 :b 2 :c 3})
@@ -116,7 +115,7 @@ bank accounts:
 ### Transforming data
 
 Querying a data structure is fairly useful, but often the results of a query will simply be used to drive the transformation
-of another data structure. This is why Odin also provides the transform macro, let's write a transformation query
+of another data structure. This is why Odin also provides the `transform` macro, let's write a transformation query
 that looks for overdrawn bank accounts and updates the accounts by adding a attribute called `:overdrawn/balance` that
 specifies the negative balance of the account. 
 
@@ -138,9 +137,9 @@ specifies the negative balance of the account.
          :jane {:credits 2000 :debits 1000}}
     
         
-There's a few new constructs in this query. First of all we see the use of `o/project`, this macro provides a simple way
+There's a few new constructs in this query. First of all we see the use of `o/project`, this macro provides a way
 of injecting arbitrary Clojure code into the middle of a query. The first form of `o/project` specifies a clojure expression, 
-and the second form specifies how to bind the expression's result in the query execution. Here we are simply calculating
+and the second form specifies how to bind the expression's result in the query execution. Here we are calculating
 the balance of an account and storing it in `?balance`. 
 
 The next construct we see is `o/update`. This clause works in conjunction with `o/transform` and provides context to the
