@@ -22,3 +22,27 @@
 
     [_ _ ?v] (o/project
                (d/datoms ?db :vaet ?v) [[?e ?a] ...])))
+
+
+;; Transaction helpers
+
+(let [vconj (fnil conj [])]
+  (defn add
+    ([map]
+      (o/update-local-cache ::tx-data vconj map))
+    ([e a v]
+     (o/update-local-cache ::tx-data vconj [:db/add e a v])))
+
+  )
+
+
+(defmacro transact-query [conn query]
+  (let [sym-name (gensym "?result")]
+    `(d/transact ~conn
+                 (into []
+                   cat
+                   (o/for-query
+                     (o/and
+                       ~query
+                       (o/get-local-cache ::tx-data ~sym-name))
+                     ~sym-name)))))

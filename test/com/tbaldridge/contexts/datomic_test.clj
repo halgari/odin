@@ -1,39 +1,31 @@
 (ns com.tbaldridge.contexts.datomic-test
   (:require [datomic.api :as d]
-            [com.tbaldridge.odin.contexts.datomic :refer [datoms]]
+            [com.tbaldridge.odin.contexts.datomic :refer [datoms] :as datomic]
             [com.tbaldridge.odin :as o]
             [clojure.test :refer :all]))
 
 (set! *warn-on-reflection* true)
 
 
-(def schema [{:db/id                 (d/tempid :db.part/db)
-              :db/ident              :person/name
+(def schema [{:db/ident              :person/name
               :db/valueType          :db.type/string
               :db/cardinality        :db.cardinality/one
-              :db/index              true
-              :db.install/_attribute :db.part/db}
+              :db/index              true}
 
-             {:db/id                 (d/tempid :db.part/db)
-              :db/ident              :person/age
+             {:db/ident              :person/age
               :db/valueType          :db.type/long
               :db/index              true
-              :db/cardinality        :db.cardinality/one
-              :db.install/_attribute :db.part/db}
+              :db/cardinality        :db.cardinality/one}
 
-             {:db/id                 (d/tempid :db.part/db)
-              :db/ident              :person/parents
+             {:db/ident              :person/parents
               :db/valueType          :db.type/ref
               :db/index              true
-              :db/cardinality        :db.cardinality/many
-              :db.install/_attribute :db.part/db}
+              :db/cardinality        :db.cardinality/many}
 
-             {:db/id                 (d/tempid :db.part/db)
-              :db/ident              :parent/children
+             {:db/ident              :parent/children
               :db/valueType          :db.type/ref
               :db/index              true
-              :db/cardinality        :db.cardinality/many
-              :db.install/_attribute :db.part/db}])
+              :db/cardinality        :db.cardinality/many}])
 
 (def data [{:db/id       (d/tempid :db.part/user -1)
             :person/name "Bill"
@@ -56,14 +48,16 @@
             :person/parents #{(d/tempid :db.part/user -1)
                               (d/tempid :db.part/user -2)}}])
 
+(defn new-db []
+  (let [uri  (str "datomic:mem://" (name (gensym "")))
+        _    (d/create-database uri)
+        conn (d/connect uri)]
+    @(d/transact conn schema)
+    @(d/transact conn data)
+    conn))
 
 (def test-db (delay
-               (let [uri  (str "datomic:mem://" (name (gensym "")))
-                     _    (d/create-database uri)
-                     conn (d/connect uri)]
-                 @(d/transact conn schema)
-                 @(d/transact conn data)
-                 conn)))
+               (new-db)))
 
 (deftest datomic-tests
   (let [db (d/db @test-db)]
@@ -82,10 +76,36 @@
                     (datoms db ?child :person/parents ?parent)
                     (datoms db ?child :person/name "June"))
                   ?parent-name))
-           #{"Bill" "Jane"}))
+           #{"Bill" "Jane"}))))
 
-    (is (= (set (o/for-query
-                  (o/and
-                    (datoms db ?person ?attr "Bill"))
-                  ?attr))
-           #{}))))
+
+(deftest transact-tests
+  (testing "asserting single datoms"
+    (let [conn (new-db)]
+      @(datomic/transact-query conn
+                               (o/and
+                                 (datomic/add {:person/name "Zeb"
+                                               :person/age 44})
+                                 (datomic/add {:person/name "Zeek"
+                                               :person/age 43})))
+      (let [db (d/db conn)]
+        (is (= (set (o/for-query
+                      (datoms db _ :person/name ?name)
+                      ?name))
+               #{"Sam" "Bill" "Zeek" "Jane" "Zeb" "June"})))))
+
+  (testing "asserting multiple datoms"
+    (let [conn (new-db)]
+      @(datomic/transact-query conn
+                               (o/and
+                                 (o/project
+                                   {"Zeb"  44
+                                    "Zeek" 43} [[?name ?age] ...]
+                                   {:person/name ?name
+                                    :person/age  ?age} ?data)
+                                 (datomic/add ?data)))
+      (let [db (d/db conn)]
+        (is (= (set (o/for-query
+                      (datoms db _ :person/name ?name)
+                      ?name))
+               #{"Sam" "Bill" "Zeek" "Jane" "Zeb" "June"}))))))

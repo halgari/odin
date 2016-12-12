@@ -106,11 +106,6 @@
 (def ^{:doc "A goal that always fails."}
     fail (filter (constantly false)))
 
-#_(defmacro transform-query [data body]
-  (u/transform-query-impl data body))
-
-#_(defn transform [location f & args]
-  (u/transform location f args))
 
 (defmacro transform [data q f & args]
   (u/transform-query-impl data q f args))
@@ -132,3 +127,13 @@
   [k body]
   (u/cache-in-context-impl k body))
 
+(defn update-local-cache
+  "Updates a entry at k in the local cache. Local caches are isolated between, results
+  of a query. Updates to this cache are retracted when backtracking occurs."
+  [k f & args]
+  (u/update-local-cache k f args))
+
+(defn get-local-cache
+  "Binds the cache entry under k to the specified lvar."
+  [k lvar]
+  (u/get-local-cache k lvar))

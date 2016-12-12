@@ -358,3 +358,14 @@
                          (fn [idx [k v]]
                            [k `((get ~fns-sym ~idx) ~acc-sym ~itm-sym)])
                          body-map)))))))))
+
+
+(defn update-local-cache [k f args]
+  (map
+    (fn [env]
+      (apply update-in env [::context k] f (map (partial walk env) args)))))
+
+(defn get-local-cache [k lvar]
+  (keep
+    (fn [env]
+      (unify env (get-in env [::context k])  lvar))))

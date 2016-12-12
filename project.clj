@@ -8,7 +8,7 @@
                  [org.clojure/test.check "0.9.0"]]
   ;:jvm-opts ["-agentpath:/Users/tim/lib/libyjpagent.jnilib"]
   :profiles {:dev {:dependencies [[org.clojure/data.xml "0.0.8"]
-                                  [com.datomic/datomic-free "0.9.5407"]]}}
+                                  [com.datomic/datomic-free "0.9.5544"]]}}
   :plugins [[autodoc/lein-autodoc "1.1.1"]
             [lein-doo "0.1.7"]
             [lein-cljsbuild "1.1.4"]]

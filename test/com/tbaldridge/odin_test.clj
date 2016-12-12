@@ -316,3 +316,50 @@
                     (o/= ?pd 42))
                   ?pd))
            #{42}))))
+
+
+
+(deftest context-tests
+  (testing "basic context usage"
+    (is (= (set (o/for-query
+                  (o/and
+                    (o/update-local-cache ::test conj 1)
+                    (o/update-local-cache ::test conj 2)
+                    (o/get-local-cache ::test ?result))
+                  ?result))
+           #{'(2 1)})))
+
+  (testing "values can be walked"
+    (is (= (set (o/for-query
+                  (o/and
+                    (o/project
+                      (range 4) [?data ...])
+                    (o/update-local-cache ::test conj ?data)
+                    (o/get-local-cache ::test ?result))
+                  ?result))
+           #{'(0) '(1) '(2) '(3)})))
+
+  (testing "results are isolated"
+    (is (= (set (o/for-query
+                  (o/and
+                    (o/or
+                      (o/update-local-cache ::test conj 1)
+                      (o/update-local-cache ::test conj 2))
+                    (o/get-local-cache ::test ?result))
+                  ?result))
+           #{'(2) '(1)})))
+
+  (testing "backtracking removes cached results"
+    (is (= (set (o/for-query
+                  (o/and
+                    (o/or
+                      (o/and
+                        (o/update-local-cache ::test conj 1)
+                        o/fail)
+                      (o/update-local-cache ::test conj 2))
+                    (o/get-local-cache ::test ?result))
+                  ?result))
+           #{'(2)})))
+
+
+  )
