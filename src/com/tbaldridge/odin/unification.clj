@@ -359,7 +359,6 @@
                            [k `((get ~fns-sym ~idx) ~acc-sym ~itm-sym)])
                          body-map)))))))))
 
-
 (defn update-local-cache [k f args]
   (map
     (fn [env]

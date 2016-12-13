@@ -29,20 +29,31 @@
 (let [vconj (fnil conj [])]
   (defn add
     ([map]
-      (o/update-local-cache ::tx-data vconj map))
+     (o/update-local-cache ::tx-data update ::default vconj map))
+    ([conn map]
+     (o/update-local-cache ::tx-data update conn vconj map))
     ([e a v]
-     (o/update-local-cache ::tx-data vconj [:db/add e a v])))
+     (o/update-local-cache ::tx-data update vconj ::default [:db/add e a v]))
+    ([conn e a v]
+     (o/update-local-cache ::tx-data update vconj conn [:db/add e a v])))
 
   )
 
 
+(defn transact-all [conns data]
+  (into {}
+        (map (fn [[conn data]]
+               [conn @(d/transact (get conns conn conn) data)]))
+        data))
+
 (defmacro transact-query [conn query]
   (let [sym-name (gensym "?result")]
-    `(d/transact ~conn
-                 (into []
-                   cat
-                   (o/for-query
-                     (o/and
-                       ~query
-                       (o/get-local-cache ::tx-data ~sym-name))
-                     ~sym-name)))))
+    `(let [conns# ~conn
+           conns# (if (map? conns#) conns# {::default conns#})
+           vdata# (vec (o/for-query
+                         (o/and
+                           ~query
+                           (o/get-local-cache ::tx-data ~sym-name))
+                         ~sym-name))
+           data# (apply merge-with concat vdata#)]
+       (transact-all conns# data#))))

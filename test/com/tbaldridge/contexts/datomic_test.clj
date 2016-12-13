@@ -1,5 +1,6 @@
 (ns com.tbaldridge.contexts.datomic-test
   (:require [datomic.api :as d]
+            [com.tbaldridge.odin.contexts.data :as dc]
             [com.tbaldridge.odin.contexts.datomic :refer [datoms] :as datomic]
             [com.tbaldridge.odin :as o]
             [clojure.test :refer :all]))
@@ -82,7 +83,7 @@
 (deftest transact-tests
   (testing "asserting single datoms"
     (let [conn (new-db)]
-      @(datomic/transact-query conn
+      (datomic/transact-query conn
                                (o/and
                                  (datomic/add {:person/name "Zeb"
                                                :person/age 44})
@@ -95,12 +96,13 @@
                #{"Sam" "Bill" "Zeek" "Jane" "Zeb" "June"})))))
 
   (testing "asserting multiple datoms"
-    (let [conn (new-db)]
-      @(datomic/transact-query conn
+    (let [conn (new-db)
+          data {"Zeb"  44
+                "Zeek" 43}]
+      (datomic/transact-query conn
                                (o/and
                                  (o/project
-                                   {"Zeb"  44
-                                    "Zeek" 43} [[?name ?age] ...]
+                                   data [[?name ?age] ...]
                                    {:person/name ?name
                                     :person/age  ?age} ?data)
                                  (datomic/add ?data)))
@@ -108,4 +110,29 @@
         (is (= (set (o/for-query
                       (datoms db _ :person/name ?name)
                       ?name))
-               #{"Sam" "Bill" "Zeek" "Jane" "Zeb" "June"}))))))
+               #{"Sam" "Bill" "Zeek" "Jane" "Zeb" "June"})))))
+
+  (testing "multiple contexts"
+    (let [conn1 (new-db)
+          conn2 (new-db)
+          data  {:conn1 {"Zeb" 44}
+                 :conn2 {"Zeek" 43}}]
+      (datomic/transact-query {:conn1 conn1
+                               :conn2 conn2}
+                              (o/and
+                                (dc/query-in data [] [?conn ?name] ?age)
+                                (o/project
+                                  {:person/name ?name
+                                   :person/age ?age} ?data)
+                                (datomic/add ?conn ?data)))
+      (let [db (d/db conn1)]
+        (is (= (set (o/for-query
+                      (datoms db _ :person/name ?name)
+                      ?name))
+               #{"Sam" "Bill" "Jane" "Zeb" "June"})))
+
+      (let [db (d/db conn2)]
+        (is (= (set (o/for-query
+                      (datoms db _ :person/name ?name)
+                      ?name))
+               #{"Sam" "Bill" "Zeek" "Jane" "June"}))))))
