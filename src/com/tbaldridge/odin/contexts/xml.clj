@@ -32,7 +32,24 @@
   (xml/parse-str "<h1><div>42</div></h1>")
   (def data (xml/parse-str (time (slurp "https://api.eve-central.com/api/quicklook?typeid=34"))))
 
-  (count (vec (d/map-path data)))
+
+
+  (count (slurp "https://api.eve-central.com/api/quicklook?typeid=34"))
+
+
+  (dotimes [x 10]
+    (time (d/diff-data (reify d/IDataIndexer
+                         (add-datom [this p a v]
+                           nil))
+                       nil data)))
+
+  (take 3 (mapcat second (:eav (d/get-index (d/index-data data)))))
+
+  (dotimes [x 10]
+    (count (time (d/get-index (d/force-index (d/index-data data)) :eav))))
+
+  (dotimes [x 10]
+    (time (d/index-data data)))
 
   (dotimes [x 10]
     (time (sort

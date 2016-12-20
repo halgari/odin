@@ -11,12 +11,11 @@
               :d {:e {:f 2}
                   :g 3}}]
     ;; Test with both pre-indexed and non-pre-indexed data
-    (doseq [data [#_data (d/index-data data)]]
-      (binding [u/*query-ctx* {} #_{::u/fn u/println-tracing-reporter}]
-        (is (= (set (o/for-query
-                      (d/query data _ :c ?v)
-                      ?v))
-               #{1})))
+    (doseq [data [data]]
+      (is (= (set (o/for-query
+                    (d/query data _ :c ?v)
+                    ?v))
+             #{1}))
 
       (is (= (set (o/for-query
                     (d/query data _ ?a 1)
@@ -26,11 +25,13 @@
       (is (= (set (o/for-query
                     (o/and (d/query data _ _ ?v)
                            (o/when (integer? ?v)))
-                    #{1 2 3}))))
+                    ?v))
+             #{1 2 3}))
 
       (is (= (set (o/for-query
                     (d/query data _ ?a _)
-                    #{:a :b :c :d :e :f :g})))))))
+                    ?a))
+             #{:a :b :c :d :e :f :g})))))
 
 (o/defrule parent [data ?parent ?child]
   (o/and
@@ -85,7 +86,6 @@
       (o/and
         (link data ?from ?n)
         (o/lazy-rule (calls data ?n ?to))))))
-
 
 
 
