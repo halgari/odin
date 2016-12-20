@@ -88,7 +88,7 @@
   (entryAt [this o]
     (.entryAt coll o))
   (assoc [this k v]
-    (->IndexedData (.assoc coll k v)
+    (IndexedData. (.assoc coll k v)
                    false
                    (if indexed?
                      coll prev-coll)
@@ -254,78 +254,79 @@
     (reduce-kv f init coll)))
 
 (defn diff-val [di path attr a b]
-  (condp = [(get-type a) (get-type b)]
-    [:val :val] (if (not= a b)
-                  (do
-                    (remove-datom di path attr a)
-                    (add-datom di path attr b)))
-    [:map :nil] (let [new-path (conj path attr)]
-                  (remove-datom di path attr new-path)
-                  (vreduce-kv
-                    (fn [_ k v]
-                      (remove-datom di path k new-path)
-                      (diff-val di new-path k v nil))
-                    nil
-                    a))
-    [:val :nil] (remove-datom di path attr a)
+  (when-not (identical? a b)
+    (condp = [(get-type a) (get-type b)]
+      [:val :val] (if (not= a b)
+                    (do
+                      (remove-datom di path attr a)
+                      (add-datom di path attr b)))
+      [:map :nil] (let [new-path (conj path attr)]
+                    (remove-datom di path attr new-path)
+                    (vreduce-kv
+                      (fn [_ k v]
+                        (remove-datom di path k new-path)
+                        (diff-val di new-path k v nil))
+                      nil
+                      a))
+      [:val :nil] (remove-datom di path attr a)
 
-    [:val :map] (do (diff-val di path attr a nil)
-                    (diff-val di path attr nil b))
-    [:val :seq] (do (diff-val di path attr a nil)
-                    (diff-val di path attr nil b))
-    [:seq :val] (do (diff-val di path attr a nil)
-                    (diff-val di path attr nil b))
-    [:map :seq] (do (diff-val di path attr a nil)
-                    (diff-val di path attr nil b))
-    [:map :val] (do (diff-val di path attr a nil)
-                    (diff-val di path attr nil b))
-    [:seq :map] (do (diff-val di path attr a nil)
-                    (diff-val di path attr nil b))
+      [:val :map] (do (diff-val di path attr a nil)
+                      (diff-val di path attr nil b))
+      [:val :seq] (do (diff-val di path attr a nil)
+                      (diff-val di path attr nil b))
+      [:seq :val] (do (diff-val di path attr a nil)
+                      (diff-val di path attr nil b))
+      [:map :seq] (do (diff-val di path attr a nil)
+                      (diff-val di path attr nil b))
+      [:map :val] (do (diff-val di path attr a nil)
+                      (diff-val di path attr nil b))
+      [:seq :map] (do (diff-val di path attr a nil)
+                      (diff-val di path attr nil b))
 
-    [:nil :map] (let [new-path (conj path attr)]
-                  (add-datom di path attr new-path)
-                  (vreduce-kv
-                    (fn [_ k v]
-                      (diff-val di new-path k nil v))
-                    nil
-                    b))
-    [:nil :val] (add-datom di path attr b)
+      [:nil :map] (let [new-path (conj path attr)]
+                    (add-datom di path attr new-path)
+                    (vreduce-kv
+                      (fn [_ k v]
+                        (diff-val di new-path k nil v))
+                      nil
+                      b))
+      [:nil :val] (add-datom di path attr b)
 
-    [:nil :seq] (let [new-path (conj path attr)]
-                  (add-datom di path attr new-path)
-                  (nil-reduce
-                    (map-indexed
-                      (fn [i v]
-                        (diff-val di new-path i nil v)))
-                    b))
-    [:seq :nil] (let [new-path (conj path attr)]
-                  (remove-datom di path attr new-path)
-                  (nil-reduce
-                    (map-indexed
-                      (fn [i v]
-                        (diff-val di new-path i v nil)))
-                    a))
-    [:map :map] (let [new-path (conj path attr)]
-                  (vreduce-kv
-                    (fn [_ ka va]
-                      (if-some [vb (get b ka)]
-                        (diff-val di new-path ka va vb)
-                        (diff-val di new-path ka va nil)))
-                    nil
-                    a)
-                  (vreduce-kv
-                    (fn [_ kb vb]
-                      (if-not (contains? a kb)
-                        (diff-val di new-path kb nil vb)))
-                    nil
-                    b))
-    [:seq :seq] (let [new-path (conj path attr)]
-                  (loop [[a & an :as as] (seq a)
-                         [b & bn :as bs] (seq b)
-                         idx 0]
-                    (when (or as bs)
-                      (diff-val di new-path idx a b)
-                      (recur an bn (inc idx)))))))
+      [:nil :seq] (let [new-path (conj path attr)]
+                    (add-datom di path attr new-path)
+                    (nil-reduce
+                      (map-indexed
+                        (fn [i v]
+                          (diff-val di new-path i nil v)))
+                      b))
+      [:seq :nil] (let [new-path (conj path attr)]
+                    (remove-datom di path attr new-path)
+                    (nil-reduce
+                      (map-indexed
+                        (fn [i v]
+                          (diff-val di new-path i v nil)))
+                      a))
+      [:map :map] (let [new-path (conj path attr)]
+                    (vreduce-kv
+                      (fn [_ ka va]
+                        (if-some [vb (get b ka)]
+                          (diff-val di new-path ka va vb)
+                          (diff-val di new-path ka va nil)))
+                      nil
+                      a)
+                    (vreduce-kv
+                      (fn [_ kb vb]
+                        (if-not (contains? a kb)
+                          (diff-val di new-path kb nil vb)))
+                      nil
+                      b))
+      [:seq :seq] (let [new-path (conj path attr)]
+                    (loop [[a & an :as as] (seq a)
+                           [b & bn :as bs] (seq b)
+                           idx 0]
+                      (when (or as bs)
+                        (diff-val di new-path idx a b)
+                        (recur an bn (inc idx))))))))
 
 (defn diff-data [di a b]
   (let [path ^::path []]
