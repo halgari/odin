@@ -63,11 +63,11 @@
         (println " datoms " (count @(:data idx1)))
         (is (= @(:data idx1) #{}))))))
 
-(deftest test-assoc
-  (let [idx (d/index-data {:a 42})]
-    (is (= idx {:a 42}))
-    (is (= (assoc idx :a 0) {:a 0}))
-    (is (= (count idx) 1))
+(deftest test-index-updating
+  (let [idx (d/index-data {:a 42 :b 1})]
+    (is (= idx {:a 42 :b 1}))
+    (is (= (assoc idx :a 0) {:a 0 :b 1}))
+    (is (= (count idx) 2))
 
     (is (= (set (o/for-query
                   (d/query idx _ :a ?i)
@@ -78,7 +78,18 @@
       (is (= (set (o/for-query
                     (d/query idx _ :a ?i)
                     ?i))
-             #{0})))))
+             #{0}))
+
+      (is (= (set (o/for-query
+                    (d/query idx _ :b ?i)
+                    ?i))
+             #{1})))
+
+    (let [idx (empty idx)]
+      (is (= (set (o/for-query
+                    (d/query idx _ :a ?i)
+                    ?i))
+             #{})))))
 
 (comment
   (let [db  [[:a :b]

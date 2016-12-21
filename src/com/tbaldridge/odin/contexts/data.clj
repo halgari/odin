@@ -89,10 +89,10 @@
     (.entryAt coll o))
   (assoc [this k v]
     (IndexedData. (.assoc coll k v)
-                   false
-                   (if indexed?
-                     coll prev-coll)
-                   nil nil nil))
+                  false
+                  (if indexed?
+                    coll prev-coll)
+                  eav ave vea))
 
   Seqable
   (seq [this]
@@ -104,7 +104,10 @@
   (cons [this o]
     (.cons coll o))
   (empty [this]
-    ;;TODO, return new
+    (IndexedData. (empty coll)
+                  false
+                  nil
+                  nil nil nil)
     )
   (equiv [this o]
     (.equiv coll o))
@@ -329,55 +332,56 @@
                         (recur an bn (inc idx))))))))
 
 (defn diff-data [di a b]
-  (let [path ^::path []]
-    (condp = [(get-type a) (get-type b)]
-      [:nil :map] (vreduce-kv
-                    (fn [_ k v]
-                      (diff-val di path k nil v))
-                    nil
-                    b)
+  (when-not (identical? a b)
+    (let [path ^::path []]
+      (condp = [(get-type a) (get-type b)]
+        [:nil :map] (vreduce-kv
+                      (fn [_ k v]
+                        (diff-val di path k nil v))
+                      nil
+                      b)
 
-      [:nil :seq] (nil-reduce
-                    (map-indexed
-                      (fn [i v]
-                        (diff-val di path i nil v)))
-                    b)
-      [:map :map] (do (vreduce-kv
-                        (fn [_ ka va]
-                          (if-some [vb (get b ka)]
-                            (diff-val di path ka va vb)
-                            (do (remove-datom di path ka va)
-                                (diff-val di path ka va nil))))
-                        nil
-                        a)
-                      (vreduce-kv
-                        (fn [_ kb vb]
-                          (if-not (contains? a kb)
-                            (diff-val di path kb nil vb)))
-                        nil
-                        b))
-      [:seq :seq] (loop [[a & an :as as] (seq a)
-                         [b & bn :as bs] (seq b)
-                         idx 0]
-                    (when (or as bs)
-                      (diff-val di path idx a b)
-                      (recur an bn (inc idx))))
-      [:map :seq] (do (diff-data di a nil)
-                      (diff-data di nil b))
-      [:seq :map] (do (diff-data di a nil)
-                      (diff-data di nil b))
-      [:map :nil] (vreduce-kv
-                    (fn [_ k v]
-                      (diff-val di path k v nil))
-                    nil
-                    a)
+        [:nil :seq] (nil-reduce
+                      (map-indexed
+                        (fn [i v]
+                          (diff-val di path i nil v)))
+                      b)
+        [:map :map] (do (vreduce-kv
+                          (fn [_ ka va]
+                            (if-some [vb (get b ka)]
+                              (diff-val di path ka va vb)
+                              (do (remove-datom di path ka va)
+                                  (diff-val di path ka va nil))))
+                          nil
+                          a)
+                        (vreduce-kv
+                          (fn [_ kb vb]
+                            (if-not (contains? a kb)
+                              (diff-val di path kb nil vb)))
+                          nil
+                          b))
+        [:seq :seq] (loop [[a & an :as as] (seq a)
+                           [b & bn :as bs] (seq b)
+                           idx 0]
+                      (when (or as bs)
+                        (diff-val di path idx a b)
+                        (recur an bn (inc idx))))
+        [:map :seq] (do (diff-data di a nil)
+                        (diff-data di nil b))
+        [:seq :map] (do (diff-data di a nil)
+                        (diff-data di nil b))
+        [:map :nil] (vreduce-kv
+                      (fn [_ k v]
+                        (diff-val di path k v nil))
+                      nil
+                      a)
 
-      [:seq :nil] (nil-reduce
-                    (map-indexed
-                      (fn [i v]
-                        (diff-val di path i v nil)))
-                    a)
-      [:nil :val] nil)))
+        [:seq :nil] (nil-reduce
+                      (map-indexed
+                        (fn [i v]
+                          (diff-val di path i v nil)))
+                      a)
+        [:nil :val] nil))))
 
 
 
