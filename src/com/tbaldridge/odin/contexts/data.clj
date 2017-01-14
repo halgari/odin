@@ -186,13 +186,18 @@
                                                      (u/unify v' v))))))))))
 
 
-(defn query-in [coll p [h & t] v]
-  (if (seq t)
-    (let [cvar (u/lvar)]
-      (u/conjunction
-        (query coll p h cvar)
-        (query-in coll cvar t v)))
-    (query coll p h v)))
+(defn query-in
+  ([coll path]
+    (query-in coll (butlast path) (last path)))
+  ([coll path v]
+    (query-in coll [] path v))
+  ([coll p [h & t] v]
+   (if (seq t)
+     (let [cvar (u/lvar)]
+       (u/conjunction
+         (query coll p h cvar)
+         (query-in coll cvar t v)))
+     (query coll p h v))))
 
 (defn parent-of [data ?p ?c]
   (mapcat
