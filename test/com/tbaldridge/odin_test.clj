@@ -26,11 +26,13 @@
       (is (= (set (o/for-query
                     (o/and (d/query data _ _ ?v)
                            (o/when (integer? ?v)))
-                    #{1 2 3}))))
+                    ?v))
+             #{1 2 3}))
 
       (is (= (set (o/for-query
                     (d/query data _ ?a _)
-                    #{:a :b :c :d :e :f :g})))))))
+                    ?a)) 
+             #{:a :b :c :d :e :f :g})))))
 
 (o/defrule parent [data ?parent ?child]
   (o/and
