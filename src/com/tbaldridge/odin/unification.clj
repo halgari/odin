@@ -32,10 +32,13 @@
 (defn lvar? [x]
   (instance? LVar x))
 
+(def not-found (gensym))
+
 (defn walk [env a]
-  (if-let [a (get env a)]
-    (recur env a)
-    a))
+  (let [b (get env a not-found)]
+    (if (identical? b not-found)
+      a
+      (recur env b))))
 
 (defmulti -unify (fn [env a b]
                    [(type a) (type b)]))
@@ -57,6 +60,14 @@
 (defmethod -unify [LVar LVar]
   [env a b]
   (assoc env a b))
+
+(defmethod -unify [LVar nil]
+  [env a b]
+  (assoc env a b))
+
+(defmethod -unify [nil LVar]
+  [env a b]
+  (assoc env b a))
 
 
 (defn unify

@@ -32,6 +32,27 @@
                     (d/query data _ ?a _)
                     #{:a :b :c :d :e :f :g})))))))
 
+(deftest false-in-data
+  (let [data [1 2 3 false]]
+    (is (= (set (o/for-query
+                  (d/query data _ _ ?val)
+                  ?val))
+            (set data)))))
+
+(deftest nil-in-data
+  (let [data [1 2 3 nil]]
+    (is (= (set (o/for-query
+                  (d/query data ?path _ ?val)
+                  ?val))
+            (set [1 2 3])))
+
+    (is (= (set (o/for-query
+                  (d/query data ?path _ ?val)
+                  [?val]))
+            (->> data 
+              (map vector)
+              set)))))
+
 (o/defrule parent [data ?parent ?child]
   (o/and
     (d/query data ?cid :name ?child)
