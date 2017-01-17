@@ -104,12 +104,18 @@
 (defn with-env [reducible]
   (let [ctx *query-ctx*]
     (reify
+
+      Iterable
+      (iterator [_]
+        (binding [*query-ctx* (or *query-ctx* ctx)]
+           (.iterator reducible)))
+
       clojure.lang.IReduceInit
       (reduce [this f init]
-        (if *query-ctx*
-          (reduce f init reducible)
-          (binding [*query-ctx* ctx]
-            (reduce f init reducible)))))))
+        (binding [*query-ctx* (or *query-ctx* ctx)]
+           (reduce f init reducible)))
+
+      clojure.lang.Sequential)))
 
 (defn for-query-impl [query projection]
   (let [[query-lvars query-form] (body-lvars query)
