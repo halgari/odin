@@ -33,7 +33,7 @@
   (instance? LVar x))
 
 (defn walk [env a]
-  (if-let [a (get env a)]
+  (if-some [a (get env a)]
     (recur env a)
     a))
 
