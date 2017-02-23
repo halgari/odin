@@ -177,7 +177,7 @@ to modify, so `o/transform` uses the location specified by `o/update` to specify
 
 ### More on projections
 
-The `o/projection` construct provides a very powerful way to create new data sources in Odin.
+The `o/project` construct provides a very powerful way to create new data sources in Odin.
 
 ```clojure
 (set (o/for-query
