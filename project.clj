@@ -3,7 +3,7 @@
   :url "http://github.com/halgari/odin"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.9.0-alpha13"]
+  :dependencies [[org.clojure/clojure "1.9.0-beta1"]
                  [org.clojure/clojurescript "1.9.293"]
                  [org.clojure/test.check "0.9.0"]]
   ;:jvm-opts ["-agentpath:/Users/tim/lib/libyjpagent.jnilib"]
