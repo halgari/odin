@@ -2,7 +2,7 @@
   (:require [clojure.test :refer [deftest is]]
             [com.tbaldridge.odin :as o]
             [com.tbaldridge.odin.contexts.spec :as sc]
-            [clojure.spec :as s]))
+            [clojure.spec.alpha :as s]))
 
 
 (s/def ::some-int integer?)
