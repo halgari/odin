@@ -78,7 +78,28 @@
 (s/unform ::spec (s/conform ::spec `(s/keys :req [::foo ::bar])))
 (s/conform ::spec `(s/keys :req [::foo ::bar]))
 
+;;(def frm
+;; (clojure.spec.alpha/and clojure.core/simple-symbol?
+;;    (clojure.core/fn [%] (clojure.core/not= (quote &) %)))))
 
+;;(s/conform :com.tbaldridge.odin.contexts.spec/spec  frm)
+;;this fails us
+
+;; Testing com.tbaldridge.contexts.spec-test
+;; :clojure.core.specs.alpha/local-name ->  :clojure.spec.alpha/invalid
+
+;; Couldn't conform  :clojure.core.specs.alpha/local-name
+;; (clojure.spec.alpha/and
+;;  clojure.core/simple-symbol? (clojure.core/fn [%]
+;;                                (clojure.core/not= (quote &) %)))
+
+
+;;this is just scanning through the registry, looking for
+;;specs that we've defined as compatible with
+;;odin's notion of specs.  Many if of the specs will
+;;print out nonconformity errors, so you get a lot of
+;;noise.  During testing it looks like things fail,
+;;but they don't.
 (defn spec-forms []
   (o/cache-in-context ::specs
     (let [registry (s/registry)]
@@ -91,6 +112,8 @@
                                          (s/conform ::spec))]
                          (println k "-> " result)
                          (if (s/invalid? result)
+                           ;;recommend changing this to be optional or silent.
+                           ;;many registered specs don't conform, it's okay.
                            (println "Couldn't conform " k " " (s/form spec))
                            result)))))))))
 

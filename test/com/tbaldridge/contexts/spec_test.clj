@@ -14,7 +14,13 @@
 
 (s/def ::map (s/keys :req [::some-int ::some-float]))
 
-
+;;Note: getting a lot of printing about spec
+;;non-conforming is fine, it's an artifact of
+;;odin scanning all the registered specs and
+;;checking for conformity against its notion
+;;of permissible specs.  Many core specs will
+;;fail to conform, and be printed to std out.
+;;Tests still pass.
 (deftest basic-resolution-tests
   (is (= (set (o/for-query
                 (o/and
