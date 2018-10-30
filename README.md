@@ -170,7 +170,7 @@ to modify, so `o/transform` uses the location specified by `o/update` to specify
 
 
 ```clojure
-(o/transform query-that-contains-update-clause
+(o/transform data query-that-contains-update-clause
    f & args-for-f)
 ```       
            
