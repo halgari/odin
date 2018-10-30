@@ -1,5 +1,5 @@
 (ns com.tbaldridge.odin.contexts.spec
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [com.tbaldridge.odin.contexts.data :as d]
             [com.tbaldridge.odin :as o]))
 

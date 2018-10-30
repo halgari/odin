@@ -112,8 +112,7 @@
 
 (defn update
   ([?path]
-    (==
-      ?path u/xform-path))
+    (= ?path u/xform-path))
   ([?path ?attr]
     (and
       (= ?path u/xform-path)

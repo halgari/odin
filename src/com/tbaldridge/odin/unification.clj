@@ -3,7 +3,7 @@
   (:require [clojure.walk :as walk]
             [clojure.string :as str]
             [clojure.set :as set]
-            [clojure.spec :as s]
+            [clojure.spec.alpha :as s]
             [com.tbaldridge.odin.util :refer [body-lvars]]
             [com.tbaldridge.odin.util :as util])
     (:import (java.io Writer)))

@@ -101,7 +101,7 @@ that any query parameter that is specified using `_` is interpreted as a wildcar
 
 (into {}
   (o/for-query
-    (o/query data _ _ ?val)
+    (d/query data _ _ ?val)
     [?val (* ?val ?val)]))
     
 ;; => {1 1
