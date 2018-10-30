@@ -8,8 +8,8 @@ An embedded extensible logic programming DSL for CLojure
 Add the following to your lein deps:
 
 ```clojure
-[org.clojure/clojure "1.9.0-alpha14"]
-[com.tbaldridge/odin "0.2.0"]
+[org.clojure/clojure "1.9.0"]
+[com.tbaldridge/odin "0.3.1-SNAPSHOT"]
 ```
 
 
@@ -101,7 +101,7 @@ that any query parameter that is specified using `_` is interpreted as a wildcar
 
 (into {}
   (o/for-query
-    (o/query data _ _ ?val)
+    (d/query data _ _ ?val)
     [?val (* ?val ?val)]))
     
 ;; => {1 1
@@ -142,6 +142,7 @@ specifies the negative balance of the account.
 
 ```clojure
 (o/transform
+    data
     (o/and
       (d/query data ?account :credits ?credits)
       (d/query data ?account :debits ?debits)
@@ -169,7 +170,7 @@ to modify, so `o/transform` uses the location specified by `o/update` to specify
 
 
 ```clojure
-(o/transform query-that-contains-update-clause
+(o/transform data query-that-contains-update-clause
    f & args-for-f)
 ```       
            

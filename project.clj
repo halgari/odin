@@ -1,10 +1,10 @@
-(defproject com.tbaldridge/odin "0.3.0-SNAPSHOT"
+(defproject com.tbaldridge/odin "0.3.1-SNAPSHOT"
   :description "A declarative query DSL for Clojure"
   :url "http://github.com/halgari/odin"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.9.0-alpha13"]
-                 [org.clojure/clojurescript "1.9.293"]
+  :dependencies [[org.clojure/clojure "1.9.0"]
+                 [org.clojure/clojurescript "1.9.946"]
                  [org.clojure/test.check "0.9.0"]]
   ;:jvm-opts ["-agentpath:/Users/tim/lib/libyjpagent.jnilib"]
   :profiles {:dev {:dependencies [[org.clojure/data.xml "0.0.8"]
