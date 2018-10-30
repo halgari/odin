@@ -8,8 +8,8 @@ An embedded extensible logic programming DSL for CLojure
 Add the following to your lein deps:
 
 ```clojure
-[org.clojure/clojure "1.9.0-alpha14"]
-[com.tbaldridge/odin "0.2.0"]
+[org.clojure/clojure "1.9.0"]
+[com.tbaldridge/odin "0.3.1-SNAPSHOT"]
 ```
 
 
@@ -142,6 +142,7 @@ specifies the negative balance of the account.
 
 ```clojure
 (o/transform
+    data
     (o/and
       (d/query data ?account :credits ?credits)
       (d/query data ?account :debits ?debits)
